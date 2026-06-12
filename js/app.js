@@ -13,7 +13,7 @@ let countries = [];
 let globe;
 let selectedIso = null;
 let hoverCountry = null;
-let selectedFeature = null;
+let hoverClearTimer = null;
 let humanityLive = false;
 let planetPts = [];
 let planetRings = [];
@@ -56,6 +56,7 @@ const rampColor = s => {
 
 const hexColor = d => {
   if (d.properties.ISO_A3 === selectedIso) return "rgba(217, 164, 65, 0.95)";
+  if (hoverCountry && d === hoverCountry) return "rgba(217, 164, 65, 0.9)";
   if (humanityLive && showWell) {
     const e = GaiaMind.indexFor(d);
     if (e && e.score != null) return rampColor(e.score);
@@ -63,33 +64,6 @@ const hexColor = d => {
   }
   return "rgba(63, 191, 168, 0.65)";
 };
-
-/* ---------- Country outline (hover & selection) ----------
-   Drawn as a border path — never touches the dots,
-   so nothing rebuilds and nothing flickers. */
-
-function countryRings(f) {
-  const g = f.geometry;
-  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
-  return polys.map(p => p[0]);
-}
-
-function refreshOutline() {
-  const f = selectedFeature || hoverCountry;
-  if (!f) { globe.pathsData([]); return; }
-  const sel = selectedFeature && f === selectedFeature;
-  globe
-    .pathsData(countryRings(f))
-    .pathPoints(r => r)
-    .pathPointLat(pt => pt[1])
-    .pathPointLng(pt => pt[0])
-    .pathPointAlt(0.002)
-    .pathColor(() => sel
-      ? "rgba(217, 164, 65, 0.9)"
-      : "rgba(143, 240, 207, 0.75)")
-    .pathStroke(0.6)
-    .pathTransitionDuration(0);
-}
 
 /* ---------- Intro ---------- */
 
@@ -144,10 +118,21 @@ async function init() {
     .onHexPolygonClick(d => openRegion(d))
     .onHexPolygonHover(d => {
       const f = d || null;
-      if (f === hoverCountry) return;
-      hoverCountry = f;
-      refreshOutline();
-      document.body.style.cursor = f ? "pointer" : "";
+      if (f) {
+        clearTimeout(hoverClearTimer);
+        if (f === hoverCountry) return;
+        hoverCountry = f;
+        globe.hexPolygonColor(hexColor);
+        document.body.style.cursor = "pointer";
+      } else {
+        /* Damper: brief null events during repaint are ignored */
+        clearTimeout(hoverClearTimer);
+        hoverClearTimer = setTimeout(() => {
+          hoverCountry = null;
+          globe.hexPolygonColor(hexColor);
+          document.body.style.cursor = "";
+        }, 180);
+      }
     });
 
   const controls = globe.controls();
@@ -296,9 +281,7 @@ function openRegion(feature) {
   const iso = feature.properties.ISO_A3;
 
   selectedIso = iso;
-  selectedFeature = feature;
   globe.hexPolygonColor(hexColor);
-  refreshOutline();
 
   document.getElementById("region-name").textContent = name;
 
@@ -335,9 +318,7 @@ function openRegion(feature) {
 function closeRegion() {
   document.getElementById("region-panel").classList.remove("open");
   selectedIso = null;
-  selectedFeature = null;
   globe.hexPolygonColor(hexColor);
-  refreshOutline();
   globe.controls().autoRotate = true;
 }
 
@@ -487,9 +468,7 @@ function openPlace(p) {
   }
 
   selectedIso = countryFeature ? countryFeature.properties.ISO_A3 : null;
-  selectedFeature = countryFeature || null;
   globe.hexPolygonColor(hexColor);
-  refreshOutline();
 
   document.getElementById("region-name").textContent = p.name;
 
