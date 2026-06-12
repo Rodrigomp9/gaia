@@ -336,9 +336,9 @@ const GaiaMind = {
       const res = await fetch("/api/voice");
       if (!res.ok) throw new Error("offline");
       const data = await res.json();
-      GaiaData.voicePoints = (data.points || []).map(p => ({
-        type: "voice", ...p
-      }));
+      GaiaData.voicePoints = (data.points || [])
+        .filter(p => !(p.lat === 0 && p.lng === 0))
+        .map(p => ({ type: "voice", ...p }));
       GaiaData.voiceByTheme = data.byTheme || {};
       GaiaData.globalPulse.voices = data.total || 0;
       return GaiaData.voicePoints;

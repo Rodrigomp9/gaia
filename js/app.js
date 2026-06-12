@@ -13,7 +13,6 @@ let countries = [];
 let globe;
 let selectedIso = null;
 let hoverCountry = null;
-let hoverClearTimer = null;
 let humanityLive = false;
 let planetPts = [];
 let planetRings = [];
@@ -70,27 +69,77 @@ const hexColor = d => {
    one) and the invisible country shapes (when it's between
    dots). A short damper ignores the null blips in between. */
 
-let hexHover = null;
-let polyHover = null;
+/* ---------- Country under the cursor (pure math) ----------
+   Screen position -> lat/lng -> point-in-polygon test.
+   No 3D sensors, no gaps between dots, no flicker. */
 
-function applyHover() {
-  /* The country stays lit while EITHER sensor sees it.
-     Only when both agree the cursor left does it dim. */
-  const f = hexHover || polyHover;
-  if (f) {
-    clearTimeout(hoverClearTimer);
-    if (f === hoverCountry) return;
-    hoverCountry = f;
-    globe.hexPolygonColor(hexColor);
-    document.body.style.cursor = "pointer";
-  } else {
-    clearTimeout(hoverClearTimer);
-    hoverClearTimer = setTimeout(() => {
-      hoverCountry = null;
-      globe.hexPolygonColor(hexColor);
-      document.body.style.cursor = "";
-    }, 120);
+function bboxOf(f) {
+  let minLng = 999, minLat = 999, maxLng = -999, maxLat = -999;
+  const g = f.geometry;
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+  polys.forEach(p => p[0].forEach(pt => {
+    if (pt[0] < minLng) minLng = pt[0];
+    if (pt[0] > maxLng) maxLng = pt[0];
+    if (pt[1] < minLat) minLat = pt[1];
+    if (pt[1] > maxLat) maxLat = pt[1];
+  }));
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+function pointInRing(lat, lng, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) &&
+        (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
   }
+  return inside;
+}
+
+function countryAt(lat, lng) {
+  for (const c of countries) {
+    const b = c.__bbox || (c.__bbox = bboxOf(c));
+    if (lng < b[0] || lat < b[1] || lng > b[2] || lat > b[3]) continue;
+    const g = c.geometry;
+    const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+    for (const p of polys) {
+      if (pointInRing(lat, lng, p[0])) return c;
+    }
+  }
+  return null;
+}
+
+function setupCountryPointer() {
+  const el = document.getElementById("globe-container");
+  let raf = null, lastEvt = null;
+
+  el.addEventListener("mousemove", e => {
+    lastEvt = e;
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = null;
+      const r = el.getBoundingClientRect();
+      const c = globe.toGlobeCoords(lastEvt.clientX - r.left, lastEvt.clientY - r.top);
+      const f = c ? countryAt(c.lat, c.lng) : null;
+      if (f !== hoverCountry) {
+        hoverCountry = f;
+        globe.hexPolygonColor(hexColor);
+        el.style.cursor = f ? "pointer" : "";
+      }
+    });
+  });
+
+  /* Click anywhere inside a country opens it (drag = rotate, not click) */
+  let downX = 0, downY = 0;
+  el.addEventListener("mousedown", e => { downX = e.clientX; downY = e.clientY; });
+  el.addEventListener("click", e => {
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+    const r = el.getBoundingClientRect();
+    const c = globe.toGlobeCoords(e.clientX - r.left, e.clientY - r.top);
+    const f = c ? countryAt(c.lat, c.lng) : null;
+    if (f) openRegion(f);
+  });
 }
 
 /* ---------- Intro ---------- */
@@ -143,35 +192,7 @@ async function init() {
         ">${d.properties.ADMIN}${score}</div>
       `;
     })
-    .onHexPolygonClick(d => openRegion(d))
-    .onHexPolygonHover(d => { hexHover = d || null; applyHover(); })
-    /* Invisible territory layer — pure hit-area BELOW the dots
-       (above them was what blacked the globe out before) */
-    .polygonsData(countries)
-    .polygonAltitude(() => 0.0001)
-    .polygonCapColor(() => "rgba(0,0,0,0)")
-    .polygonSideColor(() => "rgba(0,0,0,0)")
-    .polygonStrokeColor(() => "rgba(0,0,0,0)")
-    .polygonsTransitionDuration(0)
-    .polygonLabel(d => {
-      const e = humanityLive ? GaiaMind.indexFor(d) : null;
-      const score = e && e.score != null
-        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
-        : "";
-      return `
-        <div style="
-          font-family: Inter, sans-serif;
-          font-size: 12px;
-          color: #E8EDF2;
-          background: rgba(10,16,26,0.9);
-          border: 1px solid rgba(120,160,170,0.2);
-          border-radius: 8px;
-          padding: 6px 10px;
-        ">${d.properties.ADMIN}${score}</div>
-      `;
-    })
-    .onPolygonHover(d => { polyHover = d || null; applyHover(); })
-    .onPolygonClick(d => openRegion(d));
+;
 
   const controls = globe.controls();
   controls.autoRotate = true;
@@ -181,6 +202,7 @@ async function init() {
   globe.pointOfView({ lat: 10, lng: -30, altitude: 3.6 }, 0);
 
   setupIntro();
+  setupCountryPointer();
   fillPulse();
   setupSearch();
 
