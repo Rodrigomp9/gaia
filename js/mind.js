@@ -199,6 +199,42 @@ const GaiaMind = {
     return lines;
   },
 
+  /* ---------- Humanity Pulse ----------
+     One reading per theme: the voices Gaia has heard,
+     blended with what the world's data says beneath them.
+     Honest when voices are few — patterns need many. */
+
+  humanityPulse() {
+    const idx = GaiaData.humanIndex;
+    const byTheme = GaiaData.voiceByTheme || {};
+    const pts = GaiaData.voicePoints || [];
+    const w = GaiaData.worldMeans || {};
+
+    const regionsOf = key => new Set(
+      pts.filter(p => p.theme === key)
+         .map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+    ).size;
+
+    const worldLine = {
+      children: w.children != null
+        ? `Across the world's data: primary school enrollment averages ${Math.round(w.children)}%.` : "",
+      health: w.health != null
+        ? `Across the world's data: life expectancy averages ${Math.round(w.health)} years.` : "",
+      safety: w.safety != null
+        ? `Across the world's data: ${Math.round(w.safety * 10) / 10} homicides per 100,000 people on average.` : "",
+      environment: w.environment != null
+        ? `Across the world's data: forests cover ${Math.round(w.environment)}% of the average nation.` : ""
+    };
+
+    return this.humanIndicators.map(ind => ({
+      key: ind.key,
+      label: ind.label,
+      voices: byTheme[ind.key] || 0,
+      regions: regionsOf(ind.key),
+      world: worldLine[ind.key] || ""
+    }));
+  },
+
   /* ---------- Daily Insight ----------
      One discovery per day. Deterministic by date — everyone
      on Earth sees the same insight today. All computed. */

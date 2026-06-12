@@ -710,6 +710,45 @@ function setupSpeak() {
   });
 }
 
+/* ---------- Humanity Pulse panel ---------- */
+
+function renderHumanityPulse() {
+  const body = document.getElementById("hpulse-body");
+  const foot = document.getElementById("hpulse-foot");
+  const themes = GaiaMind.humanityPulse();
+  const totalVoices = themes.reduce((s, t) => s + t.voices, 0);
+
+  body.innerHTML = themes.map(t => `
+    <div style="border:1px solid rgba(120,160,170,0.14);border-radius:12px;padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14.5px;color:#E8EDF2">${t.label}</span>
+        <span style="font-family:Marcellus,serif;font-size:18px;color:#C9B8F0">${t.voices}</span>
+      </div>
+      <div style="font-size:11.5px;color:#56616F;margin-top:2px">
+        voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
+      </div>
+      ${t.world ? `<div style="font-size:12.5px;color:#8B98A8;margin-top:10px;line-height:1.6">${t.world}</div>` : ""}
+    </div>
+  `).join("");
+
+  foot.textContent = totalVoices > 0
+    ? `Gaia has heard ${totalVoices} voice${totalVoices === 1 ? "" : "s"} so far. Patterns emerge when many speak — collective questions are never rushed.`
+    : "Gaia is listening. The first voices will appear here — patterns emerge when many speak.";
+}
+
+function setupHumanityPulse() {
+  const modal = document.getElementById("hpulse");
+  document.getElementById("pulse-open").addEventListener("click", () => {
+    renderHumanityPulse();
+    modal.classList.add("open");
+  });
+  document.getElementById("hpulse-close").addEventListener("click", () =>
+    modal.classList.remove("open"));
+  modal.addEventListener("click", e => {
+    if (e.target === e.currentTarget) modal.classList.remove("open");
+  });
+}
+
 function setupLegend() {
   const wire = (id, fn) => {
     const el = document.getElementById(id);
@@ -724,5 +763,6 @@ function setupLegend() {
 }
 
 setupSpeak();
+setupHumanityPulse();
 setupLegend();
 init();
