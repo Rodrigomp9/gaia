@@ -65,6 +65,28 @@ const hexColor = d => {
   return "rgba(63, 191, 168, 0.65)";
 };
 
+/* ---------- Unified hover (dots + invisible territory) ----------
+   Two sensors feed one state: the dots (when the cursor is on
+   one) and the invisible country shapes (when it's between
+   dots). A short damper ignores the null blips in between. */
+
+function setHover(f) {
+  if (f) {
+    clearTimeout(hoverClearTimer);
+    if (f === hoverCountry) return;
+    hoverCountry = f;
+    globe.hexPolygonColor(hexColor);
+    document.body.style.cursor = "pointer";
+  } else {
+    clearTimeout(hoverClearTimer);
+    hoverClearTimer = setTimeout(() => {
+      hoverCountry = null;
+      globe.hexPolygonColor(hexColor);
+      document.body.style.cursor = "";
+    }, 200);
+  }
+}
+
 /* ---------- Intro ---------- */
 
 function setupIntro() {
@@ -116,24 +138,34 @@ async function init() {
       `;
     })
     .onHexPolygonClick(d => openRegion(d))
-    .onHexPolygonHover(d => {
-      const f = d || null;
-      if (f) {
-        clearTimeout(hoverClearTimer);
-        if (f === hoverCountry) return;
-        hoverCountry = f;
-        globe.hexPolygonColor(hexColor);
-        document.body.style.cursor = "pointer";
-      } else {
-        /* Damper: brief null events during repaint are ignored */
-        clearTimeout(hoverClearTimer);
-        hoverClearTimer = setTimeout(() => {
-          hoverCountry = null;
-          globe.hexPolygonColor(hexColor);
-          document.body.style.cursor = "";
-        }, 180);
-      }
-    });
+    .onHexPolygonHover(d => setHover(d || null))
+    /* Invisible territory layer — pure hit-area BELOW the dots
+       (above them was what blacked the globe out before) */
+    .polygonsData(countries)
+    .polygonAltitude(() => 0.0001)
+    .polygonCapColor(() => "rgba(0,0,0,0)")
+    .polygonSideColor(() => "rgba(0,0,0,0)")
+    .polygonStrokeColor(() => "rgba(0,0,0,0)")
+    .polygonsTransitionDuration(0)
+    .polygonLabel(d => {
+      const e = humanityLive ? GaiaMind.indexFor(d) : null;
+      const score = e && e.score != null
+        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
+        : "";
+      return `
+        <div style="
+          font-family: Inter, sans-serif;
+          font-size: 12px;
+          color: #E8EDF2;
+          background: rgba(10,16,26,0.9);
+          border: 1px solid rgba(120,160,170,0.2);
+          border-radius: 8px;
+          padding: 6px 10px;
+        ">${d.properties.ADMIN}${score}</div>
+      `;
+    })
+    .onPolygonHover(d => setHover(d || null))
+    .onPolygonClick(d => openRegion(d));
 
   const controls = globe.controls();
   controls.autoRotate = true;

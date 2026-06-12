@@ -663,69 +663,6 @@ html, body {
 .legend span:hover { color: var(--text-soft); }
 .legend span.off { opacity: 0.3; text-decoration: line-through; }
 
-/* ---------- Intro tagline + can-do line ---------- */
-
-.intro-tag {
-  margin-top: 14px;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-  opacity: 0;
-  animation: rise 1.8s ease forwards 2.7s;
-}
-
-.cando {
-  margin-top: 12px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--text-faint);
-  max-width: 290px;
-}
-
-/* ---------- Today's Insight ---------- */
-
-.daily {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(460px, 50vw);
-  text-align: center;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 1.2s ease;
-  pointer-events: none;
-}
-
-.daily.alive { opacity: 1; }
-
-.daily-label {
-  font-size: 10.5px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-#daily-text {
-  margin-top: 8px;
-  font-family: "Marcellus", serif;
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text);
-  text-shadow: 0 2px 18px rgba(7,11,18,0.9);
-}
-
-@media (max-width: 900px) {
-  .daily { display: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .intro-tag { animation: none; opacity: 1; }
-}
 
 /* ---------- Identity copy ---------- */
 
@@ -748,4 +685,35 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   .intro-explain { animation: none; opacity: 1; }
+}
+
+
+/* ---------- Today's Insight ---------- */
+
+.daily {
+  position: fixed;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, 60vw);
+  text-align: center;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+  pointer-events: none;
+}
+
+.daily.alive { opacity: 1; }
+
+#daily-text {
+  margin-top: 8px;
+  font-family: "Marcellus", serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  text-shadow: 0 2px 18px rgba(7,11,18,0.9);
+}
+
+@media (max-width: 720px) {
+  .daily { display: none; }
 }
