@@ -124,6 +124,14 @@ const GaiaMind = {
         : null;
     });
 
+    /* World averages — the mirror every nation is compared against */
+    const worldMeans = {};
+    this.humanIndicators.forEach(ind => {
+      const vs = isos.map(i => byIso[i][ind.key]).filter(v => v != null);
+      if (vs.length) worldMeans[ind.key] = vs.reduce((a, b) => a + b, 0) / vs.length;
+    });
+    GaiaData.worldMeans = worldMeans;
+
     GaiaData.humanIndex = byIso;
     GaiaData.globalPulse.humanSignals = isos.length || "offline";
     GaiaData.globalPulse.status = isos.length
@@ -189,6 +197,112 @@ const GaiaMind = {
 
     GaiaData.synthesis = lines;
     return lines;
+  },
+
+  /* ---------- Daily Insight ----------
+     One discovery per day. Deterministic by date — everyone
+     on Earth sees the same insight today. All computed. */
+
+  dailyInsight() {
+    const idx = GaiaData.humanIndex;
+    if (!idx) return null;
+    const entries = Object.entries(idx)
+      .map(([iso, e]) => ({ iso, ...e }))
+      .filter(e => e.name);
+
+    const best = (key, dir) => entries
+      .filter(e => e[key] != null)
+      .sort((a, b) => dir * (b[key] - a[key]))[0];
+
+    const candidates = [];
+    const r1 = v => Math.round(v * 10) / 10;
+
+    const longLife = best("health", 1);
+    if (longLife) candidates.push(
+      `Nowhere on Earth do children live longer than in ${longLife.name} — around ${Math.round(longLife.health)} years.`);
+
+    const safest = best("safety", -1);
+    if (safest) candidates.push(
+      `${safest.name} holds the quietest streets on Earth — about ${r1(safest.safety)} homicides per 100,000 people.`);
+
+    const greenest = best("environment", 1);
+    if (greenest) candidates.push(
+      `${greenest.name} remains one of the greenest places alive — forests cover ${Math.round(greenest.environment)}% of its land.`);
+
+    const lifes = entries.map(e => e.health).filter(v => v != null);
+    if (lifes.length) {
+      const above70 = Math.round(100 * lifes.filter(v => v >= 70).length / lifes.length);
+      candidates.push(
+        `In ${above70}% of the world's nations, a child born today can expect more than seventy years of life.`);
+    }
+
+    const homs = entries.map(e => e.safety).filter(v => v != null);
+    if (homs.length) {
+      const calm = Math.round(100 * homs.filter(v => v < 5).length / homs.length);
+      candidates.push(
+        `${calm}% of nations live with low violence. Peace is the quiet majority of the Earth.`);
+    }
+
+    if (GaiaData.planetSignals && GaiaData.planetSignals.length) {
+      candidates.push(
+        `The Earth pulsed ${GaiaData.planetSignals.length} times this week — felt beneath every border equally.`);
+    }
+
+    if (!candidates.length) return null;
+    const day = Math.floor(Date.now() / 86400000);
+    return candidates[day % candidates.length];
+  },
+
+  /* ---------- Narrative — Gaia speaks about a place ----------
+     Same data, told as understanding. Every sentence is
+     computed from real numbers; nothing is invented. */
+
+  narrate(entry) {
+    const w = GaiaData.worldMeans || {};
+    const out = [];
+    const r1 = v => Math.round(v * 10) / 10;
+
+    const life = entry.health;
+    if (life != null) {
+      const d = w.health != null ? life - w.health : null;
+      let cmp = "";
+      if (d != null) {
+        cmp = Math.abs(d) < 1.5 ? " — close to the world average"
+          : d > 0 ? ` — about ${Math.round(d)} years above the world average`
+          : ` — about ${Math.round(-d)} years below the world average`;
+      }
+      out.push(`A child born here today can expect to live around <b>${Math.round(life)} years</b>${cmp}.`);
+    }
+
+    const enroll = entry.children;
+    if (enroll != null) {
+      out.push(enroll >= 95
+        ? `Nearly every child here begins school.`
+        : enroll >= 80
+        ? `Most children here begin school, though some are still left outside.`
+        : `Many children here are still outside primary education — one of this place's heaviest signals.`);
+    }
+
+    const hom = entry.safety;
+    if (hom != null) {
+      const wm = w.safety;
+      out.push(hom < 2
+        ? `Violence here is rare — around <b>${r1(hom)}</b> homicides per 100,000 people, among the quietest grounds on Earth.`
+        : hom < (wm || 6)
+        ? `Around <b>${r1(hom)}</b> homicides per 100,000 people are recorded here — below the world's average noise.`
+        : `Safety weighs here: around <b>${r1(hom)}</b> homicides per 100,000 people, above the world average.`);
+    }
+
+    const forest = entry.environment;
+    if (forest != null) {
+      out.push(forest >= 50
+        ? `Forests still hold <b>${Math.round(forest)}%</b> of this land — a rare green endurance.`
+        : forest >= 20
+        ? `Forests cover about <b>${Math.round(forest)}%</b> of this land.`
+        : `Little forest remains here — about <b>${Math.round(forest)}%</b> of the land.`);
+    }
+
+    return out;
   },
 
   /* Find a country's data from a globe feature.

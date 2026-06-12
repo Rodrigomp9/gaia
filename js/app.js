@@ -183,6 +183,11 @@ async function init() {
       countries.forEach(c => { delete c.__gaiaEntry; });
       globe.hexPolygonColor(hexColor);
       startSynthesis(GaiaMind.synthesize());
+      const di = GaiaMind.dailyInsight();
+      if (di) {
+        document.getElementById("daily-text").textContent = di;
+        document.getElementById("daily").classList.add("alive");
+      }
     }
     fillPulse();
   });
@@ -225,6 +230,29 @@ function fillPulse() {
     GaiaData.globalPulse.voices;
 }
 
+/* ---------- Narrative panel — Gaia's understanding ---------- */
+
+function narrativeHtml(entry) {
+  const lines = GaiaMind.narrate(entry);
+  let html =
+    `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:14px">Gaia's understanding</p>` +
+    lines.map(l =>
+      `<p style="font-size:13.5px;line-height:1.75;color:#B8C2CE;margin-bottom:12px">${l}</p>`
+    ).join("");
+
+  if (entry.score != null) {
+    const wAvg = 0.5; /* normalized world midpoint */
+    const rel = entry.score > wAvg + 0.07 ? "above" : entry.score < wAvg - 0.07 ? "below" : "near";
+    html += `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(120,160,170,0.14);display:flex;justify-content:space-between;align-items:baseline">
+        <span style="color:#8B98A8;font-size:12.5px">Shared wellbeing — ${rel} the world average</span>
+        <span style="color:#3FBFA8;font-family:Marcellus,serif;font-size:18px">${Math.round(entry.score * 100)}%</span>
+      </div>`;
+  }
+  html += `<p style="font-size:11px;color:#56616F;margin-top:14px">Computed from open World Bank data. Nothing invented.</p>`;
+  return html;
+}
+
 /* ---------- Region panel ---------- */
 
 function openRegion(feature) {
@@ -240,33 +268,7 @@ function openRegion(feature) {
   const entry = GaiaMind.indexFor(feature);
 
   if (entry) {
-    body.innerHTML =
-      `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:14px">What Gaia knows here</p>` +
-      GaiaMind.humanIndicators.map(ind => {
-        const v = entry[ind.key];
-        const n = entry[ind.key + "_n"];
-        if (v == null) return "";
-        return `
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;font-size:13px">
-              <span>${ind.label}</span>
-              <span style="color:#8B98A8">${Math.round(v * 10) / 10}${ind.unit}</span>
-            </div>
-            <div style="font-size:11px;color:#56616F;margin-top:2px">${ind.sub}</div>
-            <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:6px">
-              <div style="height:3px;width:${Math.max(6, Math.round(100 * (n != null ? n : 0)))}%;background:#3FBFA8;border-radius:2px"></div>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-    if (entry.score != null) {
-      body.innerHTML += `
-        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(120,160,170,0.14);display:flex;justify-content:space-between;font-size:13px">
-          <span style="color:#8B98A8">Shared wellbeing</span>
-          <span style="color:#3FBFA8;font-family:Marcellus,serif;font-size:18px">${Math.round(entry.score * 100)}%</span>
-        </div>`;
-    }
+    body.innerHTML = narrativeHtml(entry);
   } else {
     body.textContent = GaiaData.emptyRegionMessage;
   }
@@ -458,25 +460,8 @@ function openPlace(p) {
   }
 
   if (entry) {
-    html +=
-      `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:14px">What Gaia knows here</p>` +
-      GaiaMind.humanIndicators.map(ind => {
-        const v = entry[ind.key];
-        const n = entry[ind.key + "_n"];
-        if (v == null) return "";
-        return `
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;font-size:13px">
-              <span>${ind.label}</span>
-              <span style="color:#8B98A8">${Math.round(v * 10) / 10}${ind.unit}</span>
-            </div>
-            <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:6px">
-              <div style="height:3px;width:${Math.max(6, Math.round(100 * (n != null ? n : 0)))}%;background:#3FBFA8;border-radius:2px"></div>
-            </div>
-          </div>
-        `;
-      }).join("") +
-      `<p style="font-size:12px;color:#56616F;margin-top:16px;line-height:1.6">Gaia's data resolution is national for now. Local signals arrive in a future phase.</p>`;
+    html += narrativeHtml(entry) +
+      `<p style="font-size:11px;color:#56616F;margin-top:6px">Gaia's data resolution is national for now. Local signals arrive in a future phase.</p>`;
   } else {
     html += `<p>${GaiaData.emptyRegionMessage}</p>`;
   }

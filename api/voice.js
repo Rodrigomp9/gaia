@@ -15,8 +15,9 @@
 const THEMES = ["children", "health", "safety", "environment"];
 
 module.exports = async (req, res) => {
-  const SB_URL = process.env.SUPABASE_URL;
-  const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+  /* Normalize: trim spaces, strip trailing slashes */
+  const SB_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+  const SB_KEY = (process.env.SUPABASE_SERVICE_KEY || "").trim();
 
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -26,6 +27,16 @@ module.exports = async (req, res) => {
       error: "listening channel not configured yet",
       has_url: !!SB_URL,
       has_key: !!SB_KEY
+    });
+    return;
+  }
+
+  /* Self-diagnosis: the URL must look like a Supabase project URL */
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SB_URL)) {
+    res.status(503).json({
+      error: "SUPABASE_URL looks wrong",
+      url_seen: SB_URL,
+      expected_shape: "https://xxxxxxxx.supabase.co"
     });
     return;
   }

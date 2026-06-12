@@ -28,6 +28,8 @@
   </svg>
   <div class="intro-wordmark">GAIA</div>
   <p class="intro-mission">Reveal what unites us,<br>invisible beneath the noise of the world.</p>
+  <p class="intro-explain">Gaia listens to individual voices and reveals collective patterns.</p>
+  <p class="intro-tag">GAIA listens to individual voices and reveals collective patterns.</p>
   <p class="intro-hint">click anywhere to enter</p>
 </div>
 
@@ -49,6 +51,7 @@
     <div class="wordmark">GA<span>I</span>A</div>
   </div>
   <p class="mission">Reveal what unites us, invisible beneath the noise of the world.</p>
+  <p class="cando">Explore the living globe &middot; See what Gaia knows about any place &middot; Leave your anonymous voice</p>
 
   <button id="speak-open" class="speak-btn">🜨 Speak to Gaia</button>
 
@@ -98,6 +101,12 @@
   </div>
 </aside>
 
+<!-- Today's Insight -->
+<div id="daily" class="daily">
+  <div class="daily-label"><span class="syn-dot"></span> Today's insight</div>
+  <p id="daily-text"></p>
+</div>
+
 <!-- About -->
 <button id="about-open" class="about-btn">About</button>
 
@@ -129,14 +138,14 @@
   <div class="about-card" style="text-align:left">
     <button id="speak-close" class="region-close" aria-label="Close">&times;</button>
     <p class="about-sub" style="margin-top:0 !important">Speak to Gaia</p>
-    <p style="font-size:13.5px">What matters to you, where you are? Your voice is anonymous. Gaia never shows individual messages — only the patterns that emerge when many speak.</p>
+    <p style="font-size:13.5px">Help Gaia understand the world. Your voice is anonymous — Gaia never shows individual messages, only the patterns that emerge when many speak.</p>
 
     <div id="speak-form">
       <p class="about-sub">Choose a theme</p>
       <div class="theme-chips" id="theme-chips"></div>
 
       <p class="about-sub">Your voice <span style="text-transform:none;letter-spacing:0">(max 280)</span></p>
-      <textarea id="speak-text" maxlength="280" rows="3" placeholder="What do you wish for this place..."></textarea>
+      <textarea id="speak-text" maxlength="280" rows="3" placeholder="What challenge affects your community? What should improve where you live?"></textarea>
 
       <p class="about-sub">Where does your voice belong? <span style="text-transform:none;letter-spacing:0">(optional)</span></p>
       <div class="search-wrap" style="margin-top:6px">
