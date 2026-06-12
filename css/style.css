@@ -738,3 +738,29 @@ html, body {
 }
 
 #country-tip b { font-weight: 500; }
+
+
+/* ---------- I feel the same ---------- */
+
+.reso-btn {
+  background: rgba(201, 184, 240, 0.08);
+  border: 1px solid rgba(201, 184, 240, 0.35);
+  border-radius: 999px;
+  padding: 7px 16px;
+  color: #C9B8F0;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+
+.reso-btn:hover:not(:disabled) {
+  background: rgba(201, 184, 240, 0.16);
+  border-color: rgba(201, 184, 240, 0.6);
+}
+
+.reso-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+  border-color: rgba(201, 184, 240, 0.2);
+}

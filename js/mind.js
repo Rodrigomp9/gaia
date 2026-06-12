@@ -199,6 +199,30 @@ const GaiaMind = {
     return lines;
   },
 
+  /* ---------- Resonance — "I feel the same" ---------- */
+
+  async listenResonance() {
+    try {
+      const res = await fetch("/api/resonance");
+      if (!res.ok) throw new Error("offline");
+      const data = await res.json();
+      GaiaData.resonanceByTheme = data.byTheme || {};
+      GaiaData.resonanceTotal = data.total || 0;
+    } catch (e) {
+      GaiaData.resonanceByTheme = {};
+      GaiaData.resonanceTotal = 0;
+    }
+  },
+
+  async resonate(theme, lat, lng) {
+    const res = await fetch("/api/resonance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme, lat, lng })
+    });
+    if (!res.ok) throw new Error("channel closed");
+  },
+
   /* ---------- Humanity Pulse ----------
      One reading per theme: the voices Gaia has heard,
      blended with what the world's data says beneath them.
@@ -226,11 +250,13 @@ const GaiaMind = {
         ? `Across the world's data: forests cover ${Math.round(w.environment)}% of the average nation.` : ""
     };
 
+    const reso = GaiaData.resonanceByTheme || {};
     return this.humanIndicators.map(ind => ({
       key: ind.key,
       label: ind.label,
       voices: byTheme[ind.key] || 0,
       regions: regionsOf(ind.key),
+      resonance: reso[ind.key] || 0,
       world: worldLine[ind.key] || ""
     }));
   },

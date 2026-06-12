@@ -259,6 +259,9 @@ async function init() {
     fillPulse();
   });
 
+  /* Resonance counts */
+  GaiaMind.listenResonance();
+
   /* Sense 3 — voices spoken to Gaia */
   GaiaMind.listenVoices().then(v => {
     voicePts = v;
@@ -710,6 +713,15 @@ function setupSpeak() {
   });
 }
 
+/* Resonance memory — one gesture per theme per browser */
+let resoMemory = {};
+try { resoMemory = JSON.parse(localStorage.getItem("gaia_resonance") || "{}"); } catch (e) {}
+function hasResonated(theme) { return !!resoMemory[theme]; }
+function rememberResonance(theme) {
+  resoMemory[theme] = true;
+  try { localStorage.setItem("gaia_resonance", JSON.stringify(resoMemory)); } catch (e) {}
+}
+
 /* ---------- Humanity Pulse panel ---------- */
 
 function renderHumanityPulse() {
@@ -728,8 +740,32 @@ function renderHumanityPulse() {
         voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
       </div>
       ${t.world ? `<div style="font-size:12.5px;color:#8B98A8;margin-top:10px;line-height:1.6">${t.world}</div>` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+        <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
+          ${hasResonated(t.key) ? "You feel the same ✓" : "I feel the same"}
+        </button>
+        <span style="font-size:11.5px;color:#56616F">${t.resonance ? t.resonance + " feel the same" : ""}</span>
+      </div>
     </div>
   `).join("");
+
+  body.querySelectorAll(".reso-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const theme = btn.dataset.theme;
+      btn.disabled = true;
+      btn.textContent = "You feel the same ✓";
+      rememberResonance(theme);
+      try {
+        await GaiaMind.resonate(theme,
+          currentLocation ? currentLocation.lat : null,
+          currentLocation ? currentLocation.lng : null);
+        await GaiaMind.listenResonance();
+        renderHumanityPulse();
+      } catch (e) {
+        /* Local preview: the gesture is kept, the count waits for Gaia online */
+      }
+    });
+  });
 
   foot.textContent = totalVoices > 0
     ? `Gaia has heard ${totalVoices} voice${totalVoices === 1 ? "" : "s"} so far. Patterns emerge when many speak — collective questions are never rushed.`
