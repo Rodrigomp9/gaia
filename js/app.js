@@ -55,6 +55,7 @@ const rampColor = s => {
 
 const hexColor = d => {
   if (d.properties.ISO_A3 === selectedIso) return "rgba(217, 164, 65, 0.95)";
+  if (hoverCountry && d === hoverCountry) return "rgba(143, 240, 207, 0.95)";
   if (humanityLive && showWell) {
     const e = GaiaMind.indexFor(d);
     if (e && e.score != null) return rampColor(e.score);
@@ -114,41 +115,11 @@ async function init() {
       `;
     })
     .onHexPolygonClick(d => openRegion(d))
-    /* Invisible country shapes: the whole territory is clickable,
-       and hovering reveals the border */
-    .polygonsData(countries)
-    .polygonAltitude(0.003)
-    .polygonCapColor(d => d === hoverCountry
-      ? "rgba(63, 191, 168, 0.10)" : "rgba(0,0,0,0)")
-    .polygonSideColor(() => "rgba(0,0,0,0)")
-    .polygonStrokeColor(d =>
-      d.properties.ISO_A3 === selectedIso ? "rgba(217, 164, 65, 0.9)"
-      : d === hoverCountry ? "rgba(143, 240, 207, 0.55)"
-      : "rgba(63, 191, 168, 0.0)")
-    .polygonLabel(d => {
-      const e = humanityLive ? GaiaMind.indexFor(d) : null;
-      const score = e && e.score != null
-        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
-        : "";
-      return `
-        <div style="
-          font-family: Inter, sans-serif;
-          font-size: 12px;
-          color: #E8EDF2;
-          background: rgba(10,16,26,0.9);
-          border: 1px solid rgba(120,160,170,0.2);
-          border-radius: 8px;
-          padding: 6px 10px;
-        ">${d.properties.ADMIN}${score}<br><span style="color:#56616F;font-size:11px">Click to ask Gaia</span></div>
-      `;
-    })
-    .onPolygonHover(d => {
+    .onHexPolygonHover(d => {
       hoverCountry = d || null;
-      globe.polygonCapColor(globe.polygonCapColor());
-      globe.polygonStrokeColor(globe.polygonStrokeColor());
+      globe.hexPolygonColor(hexColor);
       document.body.style.cursor = d ? "pointer" : "";
-    })
-    .onPolygonClick(d => openRegion(d));
+    });
 
   const controls = globe.controls();
   controls.autoRotate = true;
@@ -297,7 +268,6 @@ function openRegion(feature) {
 
   selectedIso = iso;
   globe.hexPolygonColor(hexColor);
-  globe.polygonStrokeColor(globe.polygonStrokeColor());
 
   document.getElementById("region-name").textContent = name;
 
@@ -335,7 +305,6 @@ function closeRegion() {
   document.getElementById("region-panel").classList.remove("open");
   selectedIso = null;
   globe.hexPolygonColor(hexColor);
-  globe.polygonStrokeColor(globe.polygonStrokeColor());
   globe.controls().autoRotate = true;
 }
 
@@ -486,7 +455,6 @@ function openPlace(p) {
 
   selectedIso = countryFeature ? countryFeature.properties.ISO_A3 : null;
   globe.hexPolygonColor(hexColor);
-  globe.polygonStrokeColor(globe.polygonStrokeColor());
 
   document.getElementById("region-name").textContent = p.name;
 
