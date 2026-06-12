@@ -114,6 +114,28 @@ function setupCountryPointer() {
   const el = document.getElementById("globe-container");
   let raf = null, lastEvt = null;
 
+  /* Our own tooltip — follows the math, not the dots */
+  const tip = document.createElement("div");
+  tip.id = "country-tip";
+  document.body.appendChild(tip);
+
+  const updateTip = (f, x, y) => {
+    if (!f) { tip.style.display = "none"; return; }
+    const e = humanityLive ? GaiaMind.indexFor(f) : null;
+    tip.innerHTML = `<b>${f.properties.ADMIN}</b>` +
+      (e && e.score != null
+        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
+        : "");
+    tip.style.display = "block";
+    const pad = 16;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let tx = x + pad, ty = y + pad;
+    if (tx + tw > window.innerWidth - 8) tx = x - tw - pad;
+    if (ty + th > window.innerHeight - 8) ty = y - th - pad;
+    tip.style.left = tx + "px";
+    tip.style.top = ty + "px";
+  };
+
   el.addEventListener("mousemove", e => {
     lastEvt = e;
     if (raf) return;
@@ -127,8 +149,11 @@ function setupCountryPointer() {
         globe.hexPolygonColor(hexColor);
         el.style.cursor = f ? "pointer" : "";
       }
+      updateTip(f, lastEvt.clientX, lastEvt.clientY);
     });
   });
+
+  el.addEventListener("mouseleave", () => updateTip(null, 0, 0));
 
   /* Click anywhere inside a country opens it (drag = rotate, not click) */
   let downX = 0, downY = 0;
@@ -175,23 +200,7 @@ async function init() {
     .hexPolygonMargin(0.55)
     .hexPolygonUseDots(true)
     .hexPolygonColor(hexColor)
-    .hexPolygonLabel(d => {
-      const e = humanityLive ? GaiaMind.indexFor(d) : null;
-      const score = e && e.score != null
-        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
-        : "";
-      return `
-        <div style="
-          font-family: Inter, sans-serif;
-          font-size: 12px;
-          color: #E8EDF2;
-          background: rgba(10,16,26,0.9);
-          border: 1px solid rgba(120,160,170,0.2);
-          border-radius: 8px;
-          padding: 6px 10px;
-        ">${d.properties.ADMIN}${score}</div>
-      `;
-    })
+
 ;
 
   const controls = globe.controls();

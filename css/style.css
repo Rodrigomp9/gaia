@@ -717,3 +717,24 @@ html, body {
 @media (max-width: 720px) {
   .daily { display: none; }
 }
+
+
+/* ---------- Country tooltip (math-driven) ---------- */
+
+#country-tip {
+  position: fixed;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #E8EDF2;
+  background: rgba(10, 16, 26, 0.92);
+  border: 1px solid rgba(120, 160, 170, 0.2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+#country-tip b { font-weight: 500; }
