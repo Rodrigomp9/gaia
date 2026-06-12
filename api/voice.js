@@ -67,7 +67,10 @@ module.exports = async (req, res) => {
 
     const theme = String(b.theme || "");
     const message = String(b.message || "").trim().slice(0, 280);
-    let lat = Number(b.lat), lng = Number(b.lng);
+    /* null/absent stays null — Number(null) would become 0,0:
+       a phantom voice floating in the Atlantic */
+    let lat = b.lat == null ? NaN : Number(b.lat);
+    let lng = b.lng == null ? NaN : Number(b.lng);
 
     if (!THEMES.includes(theme)) {
       res.status(400).json({ error: "unknown theme" });

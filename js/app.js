@@ -70,7 +70,13 @@ const hexColor = d => {
    one) and the invisible country shapes (when it's between
    dots). A short damper ignores the null blips in between. */
 
-function setHover(f) {
+let hexHover = null;
+let polyHover = null;
+
+function applyHover() {
+  /* The country stays lit while EITHER sensor sees it.
+     Only when both agree the cursor left does it dim. */
+  const f = hexHover || polyHover;
   if (f) {
     clearTimeout(hoverClearTimer);
     if (f === hoverCountry) return;
@@ -83,7 +89,7 @@ function setHover(f) {
       hoverCountry = null;
       globe.hexPolygonColor(hexColor);
       document.body.style.cursor = "";
-    }, 200);
+    }, 120);
   }
 }
 
@@ -138,7 +144,7 @@ async function init() {
       `;
     })
     .onHexPolygonClick(d => openRegion(d))
-    .onHexPolygonHover(d => setHover(d || null))
+    .onHexPolygonHover(d => { hexHover = d || null; applyHover(); })
     /* Invisible territory layer — pure hit-area BELOW the dots
        (above them was what blacked the globe out before) */
     .polygonsData(countries)
@@ -164,7 +170,7 @@ async function init() {
         ">${d.properties.ADMIN}${score}</div>
       `;
     })
-    .onPolygonHover(d => setHover(d || null))
+    .onPolygonHover(d => { polyHover = d || null; applyHover(); })
     .onPolygonClick(d => openRegion(d));
 
   const controls = globe.controls();
