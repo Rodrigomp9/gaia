@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
 
     let theme = String(b.theme || "");
     if (LEGACY[theme]) theme = LEGACY[theme];
-    const message = String(b.message || "").trim().slice(0, 280);
+    const message = String(b.message || "").trim().slice(0, 500);
     /* null/absent stays null — Number(null) would become 0,0:
        a phantom voice floating in the Atlantic */
     let lat = b.lat == null ? NaN : Number(b.lat);
@@ -112,28 +112,66 @@ module.exports = async (req, res) => {
 
   /* ---------- Patterns, never posts ---------- */
   if (req.method === "GET") {
-    const r = await sb("voices?select=theme,lat,lng&limit=5000");
+    const r = await sb("voices?select=theme,lat,lng,message,created_at&limit=8000");
     if (!r.ok) {
       res.status(502).json({ error: "could not read voices" });
       return;
     }
     const rows = await r.json();
 
+    const now = Date.now();
+    const WEEK = 7 * 86400000;
+    const STOP = new Set(("the a an and or but of to in on at for with from is are was were be been being i my we our you your it its this that these those they them their he she his her not no yes do does did have has had will would can could should about more most very just so if than then there here what when where who how why as also out up down over under into".split(" ")));
+
     const byTheme = {};
     const cluster = {};
+    const trendNow = {};   /* last 7 days */
+    const trendPrev = {};  /* the 7 days before that */
+    const words = {};      /* theme -> {word: count} */
+
     rows.forEach(v => {
       byTheme[v.theme] = (byTheme[v.theme] || 0) + 1;
-      if (v.lat == null || v.lng == null) return;
-      const k = v.lat + "|" + v.lng + "|" + v.theme;
-      if (!cluster[k]) cluster[k] = { lat: v.lat, lng: v.lng, theme: v.theme, count: 0 };
-      cluster[k].count++;
+
+      if (v.lat != null && v.lng != null) {
+        const k = v.lat + "|" + v.lng + "|" + v.theme;
+        if (!cluster[k]) cluster[k] = { lat: v.lat, lng: v.lng, theme: v.theme, count: 0 };
+        cluster[k].count++;
+      }
+
+      const age = v.created_at ? now - Date.parse(v.created_at) : Infinity;
+      if (age <= WEEK) trendNow[v.theme] = (trendNow[v.theme] || 0) + 1;
+      else if (age <= 2 * WEEK) trendPrev[v.theme] = (trendPrev[v.theme] || 0) + 1;
+
+      if (v.message) {
+        words[v.theme] = words[v.theme] || {};
+        String(v.message).toLowerCase()
+          .replace(/[^a-z\u00C0-\u017F\s]/g, " ")
+          .split(/\s+/)
+          .forEach(w => {
+            if (w.length < 4 || STOP.has(w)) return;
+            words[v.theme][w] = (words[v.theme][w] || 0) + 1;
+          });
+      }
+    });
+
+    /* Top real keywords per theme — never invented */
+    const concerns = {};
+    Object.keys(words).forEach(t => {
+      concerns[t] = Object.entries(words[t])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .filter(([w, c]) => c >= 2)   /* a word must repeat to be a pattern */
+        .map(([w]) => w);
     });
 
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
     res.status(200).json({
       total: rows.length,
       byTheme,
-      points: Object.values(cluster)
+      points: Object.values(cluster),
+      trendNow,
+      trendPrev,
+      concerns
     });
     return;
   }

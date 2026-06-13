@@ -26,6 +26,9 @@ const GaiaData = {
   voiceByTheme: null,
   resonanceByTheme: null,
   resonanceTotal: 0,
+  voiceTrendNow: null,
+  voiceTrendPrev: null,
+  voiceConcerns: null,
 
   /* Shared human themes — what Gaia will eventually reveal.
      Order = global relevance. Values are demo percentages. */

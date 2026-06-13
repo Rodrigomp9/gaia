@@ -270,6 +270,7 @@ const GaiaMind = {
          .map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
     ).size;
 
+    const concerns = GaiaData.voiceConcerns || {};
     return this.voiceThemes.map(t => ({
       key: t.key,
       label: t.label,
@@ -277,9 +278,70 @@ const GaiaMind = {
       voices: byTheme[t.key] || 0,
       regions: regionsOf(t.key),
       growingIn: placesOf(t.key),
+      concerns: concerns[t.key] || [],
+      trend: this.trendFor(t.key),
       resonance: reso[t.key] || 0
     }));
   },
+
+  /* Trend per theme: last 7 days vs the 7 before */
+  trendFor(themeKey) {
+    const now = (GaiaData.voiceTrendNow || {})[themeKey] || 0;
+    const prev = (GaiaData.voiceTrendPrev || {})[themeKey] || 0;
+    if (now === 0 && prev === 0) return { dir: "quiet", now, prev };
+    if (now > prev) return { dir: "growing", now, prev };
+    if (now < prev) return { dir: "easing", now, prev };
+    return { dir: "stable", now, prev };
+  },
+
+  /* ---------- Layer 3: Emerging Signals ----------
+     Honest by design. A signal is only named when enough
+     voices gather across enough regions. Below that, Gaia
+     says she is still listening — never invents a pattern. */
+
+  emergingSignals() {
+    const byTheme = GaiaData.voiceByTheme || {};
+    const pts = GaiaData.voicePoints || [];
+
+    /* Aggregate voices + regions into Layer-2 signals */
+    const sig = {};
+    this.voiceThemes.forEach(t => {
+      const s = t.layer2;
+      if (!sig[s]) sig[s] = { signal: s, voices: 0, regionSet: new Set(), themes: new Set() };
+      sig[s].voices += byTheme[t.key] || 0;
+      sig[s].themes.add(t.key);
+    });
+    pts.forEach(p => {
+      const t = this.voiceThemes.find(v => v.key === p.theme);
+      if (!t) return;
+      sig[t.layer2].regionSet.add(Math.round(p.lat / 8) + "," + Math.round(p.lng / 8));
+    });
+
+    const LEVELS = [
+      { name: "Global Signal",   voices: 300, regions: 10 },
+      { name: "Emerging Signal", voices: 100, regions: 5 },
+      { name: "Weak Signal",     voices: 50,  regions: 3 }
+    ];
+
+    return Object.values(sig).map(s => {
+      const regions = s.regionSet.size;
+      let level = null;
+      for (const L of LEVELS) {
+        if (s.voices >= L.voices && regions >= L.regions) { level = L.name; break; }
+      }
+      /* trend across this signal's themes */
+      let now = 0, prev = 0;
+      s.themes.forEach(k => {
+        now += (GaiaData.voiceTrendNow || {})[k] || 0;
+        prev += (GaiaData.voiceTrendPrev || {})[k] || 0;
+      });
+      const dir = now > prev ? "growing" : now < prev ? "easing"
+        : (now || prev) ? "stable" : "quiet";
+      return { signal: s.signal, voices: s.voices, regions, level, dir };
+    }).sort((a, b) => b.voices - a.voices);
+  },
+
+  signalThresholds: { weakVoices: 50, weakRegions: 3 },
 
   /* Layer 2 — Gaia's deeper aggregation across all voices */
   layer2Signals() {
@@ -434,6 +496,9 @@ const GaiaMind = {
         .filter(p => !(p.lat === 0 && p.lng === 0))
         .map(p => ({ type: "voice", ...p }));
       GaiaData.voiceByTheme = data.byTheme || {};
+      GaiaData.voiceTrendNow = data.trendNow || {};
+      GaiaData.voiceTrendPrev = data.trendPrev || {};
+      GaiaData.voiceConcerns = data.concerns || {};
       GaiaData.globalPulse.voices = data.total || 0;
       return GaiaData.voicePoints;
     } catch (e) {

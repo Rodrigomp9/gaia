@@ -702,6 +702,14 @@ function setupSpeak() {
       });
       if (!res.ok) throw new Error("channel closed");
 
+      const t = GaiaMind.voiceThemes.find(v => v.key === chosenTheme);
+      const echo = document.getElementById("speak-echo");
+      if (echo && t) {
+        echo.innerHTML =
+          `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">Your signal contributes to</p>` +
+          `<p style="font-family:Marcellus,serif;font-size:20px;color:#C9B8F0">${t.layer2}</p>` +
+          `<p style="font-size:13px;color:#8B98A8;margin-top:6px">${t.label}${speakLocation ? " · " + speakLocation.name : " · worldwide"}</p>`;
+      }
       document.getElementById("speak-form").style.display = "none";
       document.getElementById("speak-done").style.display = "";
       document.getElementById("speak-text").value = "";
@@ -734,6 +742,28 @@ function renderHumanityPulse() {
   const themes = GaiaMind.humanityPulse();
   const totalVoices = themes.reduce((s, t) => s + t.voices, 0);
 
+  /* Layer 3 — emerging signals, shown above the themes */
+  const signals = GaiaMind.emergingSignals();
+  const named = signals.filter(s => s.level);
+  const sigBox = document.getElementById("hpulse-signals");
+  if (sigBox) {
+    if (named.length) {
+      sigBox.innerHTML =
+        `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
+        named.map(s => {
+          const arrow = s.dir === "growing" ? "↑" : s.dir === "easing" ? "↓" : "→";
+          return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+            <span style="font-size:14px;color:#E8EDF2">${s.signal} <span style="color:#D9A441">${arrow}</span></span>
+            <span style="font-size:11.5px;color:#56616F">${s.level} · ${s.regions} region${s.regions === 1 ? "" : "s"}</span>
+          </div>`;
+        }).join("") + `<div style="height:18px"></div>`;
+    } else {
+      sigBox.innerHTML =
+        `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
+        `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:18px">Gaia is still listening. A signal is named only when enough voices gather across enough regions — never sooner. Patterns earn their name.</p>`;
+    }
+  }
+
   body.innerHTML = themes.map(t => `
     <div style="border:1px solid rgba(120,160,170,0.14);border-radius:12px;padding:16px 18px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
@@ -743,7 +773,14 @@ function renderHumanityPulse() {
       <div style="font-size:11.5px;color:#56616F;margin-top:2px">
         voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
       </div>
-      ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:8px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
+      ${(() => {
+        const tr = t.trend || { dir: "quiet" };
+        const arrow = tr.dir === "growing" ? "↑ Growing" : tr.dir === "easing" ? "↓ Easing" : tr.dir === "stable" ? "→ Stable" : "";
+        const col = tr.dir === "growing" ? "#D9A441" : tr.dir === "easing" ? "#3FBFA8" : "#56616F";
+        return arrow ? `<div style="font-size:12px;color:${col};margin-top:6px">${arrow} this week</div>` : "";
+      })()}
+      ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
+      ${t.concerns && t.concerns.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
         <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
           ${hasResonated(t.key) ? "You feel the same ✓" : "I feel the same"}

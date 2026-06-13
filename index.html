@@ -106,7 +106,8 @@
     <button id="hpulse-close" class="region-close" aria-label="Close">&times;</button>
     <p class="about-sub" style="margin-top:0 !important">Humanity Pulse</p>
     <p style="font-size:13.5px">What people around the world are experiencing right now — the signals emerging as many voices gather.</p>
-    <div id="hpulse-body" style="margin-top:18px"></div>
+    <div id="hpulse-signals" style="margin-top:18px"></div>
+    <div id="hpulse-body"></div>
     <p id="hpulse-foot" class="about-foot" style="text-align:left"></p>
   </div>
 </div>
@@ -158,8 +159,8 @@
       <p class="about-sub">Choose a theme</p>
       <div class="theme-chips" id="theme-chips"></div>
 
-      <p class="about-sub">Your voice <span style="text-transform:none;letter-spacing:0">(max 280)</span></p>
-      <textarea id="speak-text" maxlength="280" rows="3" placeholder="What challenge affects your community? What should improve where you live?"></textarea>
+      <p class="about-sub">Your voice <span style="text-transform:none;letter-spacing:0">(max 500)</span></p>
+      <textarea id="speak-text" maxlength="500" rows="3" placeholder="What challenge affects your community? What should improve where you live?"></textarea>
 
       <p class="about-sub">Where does your voice belong? <span style="text-transform:none;letter-spacing:0">(optional)</span></p>
       <div class="search-wrap" style="margin-top:6px">
@@ -175,6 +176,7 @@
 
     <div id="speak-done" style="display:none;text-align:center;padding:18px 0">
       <p style="font-family:Marcellus,serif;font-size:20px;color:#E8EDF2">Gaia heard you.</p>
+      <div id="speak-echo" style="margin:18px 0;padding:16px;border:1px solid rgba(201,184,240,0.2);border-radius:12px"></div>
       <p style="font-size:13px;margin-top:10px">Your voice now rests with the others. When enough voices gather, a pattern will appear on the globe — patient, collective, yours and everyone&#39;s.</p>
     </div>
   </div>
