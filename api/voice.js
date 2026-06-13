@@ -12,7 +12,9 @@
      SUPABASE_URL, SUPABASE_SERVICE_KEY
    ============================================================ */
 
-const THEMES = ["children", "health", "safety", "environment"];
+const THEMES = ["cost", "safety", "health", "work", "education", "environment"];
+/* Legacy themes from before Phase 7 are remapped, never rejected */
+const LEGACY = { children: "education", "health care": "health", "public safety": "safety" };
 
 module.exports = async (req, res) => {
   /* Normalize: trim spaces, strip trailing slashes */
@@ -65,7 +67,8 @@ module.exports = async (req, res) => {
     if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) { b = {}; } }
     b = b || {};
 
-    const theme = String(b.theme || "");
+    let theme = String(b.theme || "");
+    if (LEGACY[theme]) theme = LEGACY[theme];
     const message = String(b.message || "").trim().slice(0, 280);
     /* null/absent stays null — Number(null) would become 0,0:
        a phantom voice floating in the Atlantic */

@@ -23,10 +23,12 @@ let showVoices = true;
 let showWell = true;
 
 const THEME_LABELS = {
-  children: "A future for the children",
-  health: "Health and care",
-  safety: "Safety and peace",
-  environment: "The planet we share"
+  cost: "Cost of Living",
+  safety: "Safety",
+  health: "Health",
+  work: "Work & Opportunity",
+  education: "Education",
+  environment: "Environment"
 };
 
 function refreshPoints() {
@@ -599,13 +601,15 @@ function setupSpeak() {
   const modal = document.getElementById("speak");
   const chips = document.getElementById("theme-chips");
 
-  Object.entries(THEME_LABELS).forEach(([key, label]) => {
+  GaiaMind.voiceThemes.forEach(t => {
     const b = document.createElement("button");
-    b.textContent = label;
+    b.textContent = t.label;
     b.onclick = () => {
-      chosenTheme = key;
+      chosenTheme = t.key;
       [...chips.children].forEach(c => c.classList.remove("sel"));
       b.classList.add("sel");
+      const ta = document.getElementById("speak-text");
+      if (ta) ta.placeholder = t.prompt;
     };
     chips.appendChild(b);
   });
@@ -739,7 +743,7 @@ function renderHumanityPulse() {
       <div style="font-size:11.5px;color:#56616F;margin-top:2px">
         voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
       </div>
-      ${t.world ? `<div style="font-size:12.5px;color:#8B98A8;margin-top:10px;line-height:1.6">${t.world}</div>` : ""}
+      ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:8px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
         <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
           ${hasResonated(t.key) ? "You feel the same ✓" : "I feel the same"}

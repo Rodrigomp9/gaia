@@ -12,7 +12,7 @@
    SUPABASE_URL, SUPABASE_SERVICE_KEY
    ============================================================ */
 
-const THEMES = ["children", "health", "safety", "environment"];
+const THEMES = ["cost", "safety", "health", "work", "education", "environment"];
 
 module.exports = async (req, res) => {
   const SB_URL = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");

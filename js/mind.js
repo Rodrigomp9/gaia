@@ -80,6 +80,31 @@ const GaiaMind = {
       unit: "%",      invert: false }
   ],
 
+  /* ---------- Voice themes ----------
+     Layer 1: what people actually say (simple, real).
+     Layer 2: what Gaia aggregates them into (the deeper signal).
+     The person speaks simple; Gaia thinks complex. */
+
+  voiceThemes: [
+    { key: "cost",      label: "Cost of Living", layer2: "Economic Pressure",
+      prompt: "Rent, bills, food, making ends meet — what's the pressure where you live?" },
+    { key: "safety",    label: "Safety", layer2: "Social Stability",
+      prompt: "Do you feel safe where you live? What's changing around you?" },
+    { key: "health",    label: "Health", layer2: "Human Wellbeing",
+      prompt: "Physical or mental health, care, access — what weighs on people here?" },
+    { key: "work",      label: "Work & Opportunity", layer2: "Future Confidence",
+      prompt: "Jobs, income, opportunity — what's the outlook where you are?" },
+    { key: "education",  label: "Education", layer2: "Future Confidence",
+      prompt: "Schools, learning, your children's path — what concerns you?" },
+    { key: "environment", label: "Environment", layer2: "Human Wellbeing",
+      prompt: "Climate, nature, your surroundings — what are you noticing?" }
+  ],
+
+  layer2For(themeKey) {
+    const t = this.voiceThemes.find(v => v.key === themeKey);
+    return t ? t.layer2 : null;
+  },
+
   async listenHumanity() {
     const byIso = {};
 
@@ -229,36 +254,43 @@ const GaiaMind = {
      Honest when voices are few — patterns need many. */
 
   humanityPulse() {
-    const idx = GaiaData.humanIndex;
     const byTheme = GaiaData.voiceByTheme || {};
     const pts = GaiaData.voicePoints || [];
-    const w = GaiaData.worldMeans || {};
+    const reso = GaiaData.resonanceByTheme || {};
 
+    /* Which named places are voicing each theme (for "Growing in") */
+    const placesOf = key => {
+      const names = pts
+        .filter(p => p.theme === key && p.place)
+        .map(p => p.place.split(",")[0].trim());
+      return [...new Set(names)].slice(0, 4);
+    };
     const regionsOf = key => new Set(
       pts.filter(p => p.theme === key)
          .map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
     ).size;
 
-    const worldLine = {
-      children: w.children != null
-        ? `Across the world's data: primary school enrollment averages ${Math.round(w.children)}%.` : "",
-      health: w.health != null
-        ? `Across the world's data: life expectancy averages ${Math.round(w.health)} years.` : "",
-      safety: w.safety != null
-        ? `Across the world's data: ${Math.round(w.safety * 10) / 10} homicides per 100,000 people on average.` : "",
-      environment: w.environment != null
-        ? `Across the world's data: forests cover ${Math.round(w.environment)}% of the average nation.` : ""
-    };
-
-    const reso = GaiaData.resonanceByTheme || {};
-    return this.humanIndicators.map(ind => ({
-      key: ind.key,
-      label: ind.label,
-      voices: byTheme[ind.key] || 0,
-      regions: regionsOf(ind.key),
-      resonance: reso[ind.key] || 0,
-      world: worldLine[ind.key] || ""
+    return this.voiceThemes.map(t => ({
+      key: t.key,
+      label: t.label,
+      layer2: t.layer2,
+      voices: byTheme[t.key] || 0,
+      regions: regionsOf(t.key),
+      growingIn: placesOf(t.key),
+      resonance: reso[t.key] || 0
     }));
+  },
+
+  /* Layer 2 — Gaia's deeper aggregation across all voices */
+  layer2Signals() {
+    const byTheme = GaiaData.voiceByTheme || {};
+    const agg = {};
+    this.voiceThemes.forEach(t => {
+      agg[t.layer2] = (agg[t.layer2] || 0) + (byTheme[t.key] || 0);
+    });
+    return Object.entries(agg)
+      .map(([signal, voices]) => ({ signal, voices }))
+      .sort((a, b) => b.voices - a.voices);
   },
 
   /* ---------- Daily Insight ----------
