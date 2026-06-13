@@ -735,22 +735,49 @@ function setupSpeak() {
           : "Your voice joins a signal of concern";
         const col = better ? "#3FBFA8" : "#D9A441";
 
-        /* Context: how many voices already share this layer-2 signal */
         const axis = better ? GaiaData.voiceBetter : GaiaData.voiceWorse;
-        const sameLayer2 = GaiaMind.voiceThemes
-          .filter(v => v.layer2 === t.layer2)
-          .reduce((s, v) => s + (((axis && axis.byTheme) || {})[v.key] || 0), 0);
-        const worldwide = sameLayer2 + 1; /* include the one just sent */
+        const relatedThemeKeys = GaiaMind.voiceThemes.filter(v => v.layer2 === t.layer2).map(v => v.key);
+        const relatedVoices = relatedThemeKeys
+          .reduce((s, k) => s + (((axis && axis.byTheme) || {})[k] || 0), 0) + 1;
+        const relatedRegions = new Set(
+          (GaiaData.voicePoints || [])
+            .filter(p => relatedThemeKeys.includes(p.theme) &&
+              (better ? p.direction === "better" : p.direction !== "better"))
+            .map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+        ).size || 1;
 
-        const placeLine = speakLocation
-          ? `1 voice in ${speakLocation.name.split(",")[0]}` : "shared worldwide";
+        const placeLine = speakLocation ? speakLocation.name.split(",")[0] : "worldwide";
 
         echo.innerHTML =
           `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">${head}</p>` +
           `<p style="font-family:Marcellus,serif;font-size:21px;color:${col}">${t.layer2}</p>` +
-          `<p style="font-size:13px;color:#8B98A8;margin-top:8px">${t.label} · ${placeLine}</p>` +
-          `<p style="font-size:13px;color:#8B98A8;margin-top:4px">${worldwide} voice${worldwide === 1 ? "" : "s"} worldwide in this signal</p>` +
-          `<p style="font-size:12px;color:#56616F;margin-top:10px;font-style:italic">No signal has emerged yet — patterns need many. Thank you for being one of them.</p>`;
+          `<div style="margin-top:12px;font-size:13px;color:#8B98A8;line-height:1.9">` +
+            `<div>Theme · <span style="color:#E8EDF2">${t.label}</span></div>` +
+            `<div>Region · <span style="color:#E8EDF2">${placeLine}</span></div>` +
+            `<div>Related voices · <span style="color:#E8EDF2">${relatedVoices}</span></div>` +
+            `<div>Regions reporting · <span style="color:#E8EDF2">${relatedRegions}</span></div>` +
+            `<div>State · <span style="color:${col}">Listening</span></div>` +
+          `</div>` +
+          `<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(120,160,170,0.14)">` +
+            `<p style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#56616F;margin-bottom:6px">Why your voice matters</p>` +
+            `<p style="font-size:12.5px;color:#8B98A8;line-height:1.6">When many people describe similar experiences across different places, Gaia can detect emerging human signals that no one could see alone.</p>` +
+          `</div>` +
+          `<button id="echo-explore" class="speak-btn" style="width:100%;margin-top:14px;justify-content:center">Explore this signal in the Pulse</button>`;
+
+        /* Speak → Echo → Pulse flow */
+        const ex = document.getElementById("echo-explore");
+        if (ex) ex.addEventListener("click", () => {
+          document.getElementById("speak").classList.remove("open");
+          renderHumanityPulse();
+          document.getElementById("hpulse").classList.add("open");
+        });
+
+        /* Save to local history (no login, browser only) */
+        rememberContribution({
+          theme: t.label, layer2: t.layer2, direction: chosenDirection,
+          place: speakLocation ? speakLocation.name.split(",")[0] : "Worldwide",
+          date: Date.now()
+        });
       }
       document.getElementById("speak-form").style.display = "none";
       document.getElementById("speak-done").style.display = "";
@@ -945,6 +972,57 @@ function setupShare() {
   });
 }
 
+/* ---------- Your Contributions (local, no login) ---------- */
+
+function loadContributions() {
+  try { return JSON.parse(localStorage.getItem("gaia_contributions") || "[]"); }
+  catch (e) { return []; }
+}
+function rememberContribution(c) {
+  const list = loadContributions();
+  list.unshift(c);
+  try { localStorage.setItem("gaia_contributions", JSON.stringify(list.slice(0, 50))); } catch (e) {}
+  refreshContributionsBadge();
+}
+function refreshContributionsBadge() {
+  const btn = document.getElementById("contrib-open");
+  if (!btn) return;
+  const n = loadContributions().length;
+  btn.style.display = n ? "block" : "none";
+  btn.textContent = n === 1 ? "Your voice" : `Your voices (${n})`;
+}
+function renderContributions() {
+  const body = document.getElementById("contrib-body");
+  const list = loadContributions();
+  if (!list.length) {
+    body.innerHTML = `<p style="font-size:13px;color:#8B98A8">You haven't spoken to Gaia yet. When you do, your voices will be remembered here — on this device only, never tied to your name.</p>`;
+    return;
+  }
+  body.innerHTML = list.map(c => {
+    const col = c.direction === "better" ? "#3FBFA8" : "#D9A441";
+    const d = new Date(c.date);
+    const when = d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+    return `<div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14px;color:#E8EDF2">${c.theme}</span>
+        <span style="font-size:11.5px;color:#56616F">${when}</span>
+      </div>
+      <div style="font-size:12px;color:#8B98A8;margin-top:3px">${c.place} · contributes to <span style="color:${col}">${c.layer2}</span></div>
+    </div>`;
+  }).join("") +
+  `<p style="font-size:11.5px;color:#56616F;margin-top:14px;font-style:italic">Stored only on this device. Gaia keeps no account of who you are.</p>`;
+}
+
+function setupContributions() {
+  const modal = document.getElementById("contrib");
+  const open = document.getElementById("contrib-open");
+  if (!modal || !open) return;
+  open.addEventListener("click", () => { renderContributions(); modal.classList.add("open"); });
+  document.getElementById("contrib-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", e => { if (e.target === e.currentTarget) modal.classList.remove("open"); });
+  refreshContributionsBadge();
+}
+
 /* ---------- Mobile sheet: relocate pulse + legend on phones ---------- */
 
 function setupMobileSheet() {
@@ -1001,6 +1079,7 @@ function setupLegend() {
 setupSpeak();
 setupHumanityPulse();
 setupMobileSheet();
+setupContributions();
 setupShare();
 setupLegend();
 init();
