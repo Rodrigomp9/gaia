@@ -805,18 +805,44 @@ function renderHumanityPulse() {
           </div>`).join("");
     }
     const heard = GaiaData.globalPulse.voices;
+    const isImprove = accent === "#3FBFA8";
     const heardLine = (typeof heard === "number" && heard > 0)
-      ? `${heard} voice${heard === 1 ? "" : "s"} heard so far.` : "";
+      ? `${heard} voice${heard === 1 ? "" : "s"} heard so far. ` : "";
+    const body = isImprove
+      ? `Gaia is listening. ${heardLine}The first improvement signals appear when people share what is getting better across regions.`
+      : `Gaia is listening. ${heardLine}A collective signal will be named when enough voices gather across regions.`;
     return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
-      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">No collective signal has emerged yet. Gaia is listening. ${heardLine}</p>`;
+      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">${body}</p>`;
   };
 
   if (sigBox) {
+    /* Humanity Snapshot — makes the observatory feel alive */
+    const pts = GaiaData.voicePoints || [];
+    const totalVoices = GaiaData.globalPulse.voices;
+    const regionCount = new Set(
+      pts.map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+    ).size;
+    const byTheme = GaiaData.voiceByTheme || {};
+    let topTheme = null, topN = 0;
+    Object.entries(byTheme).forEach(([k, n]) => { if (n > topN) { topN = n; topTheme = k; } });
+    const topLabel = topTheme ? (THEME_LABELS[topTheme] || topTheme) : "—";
+
+    const snapshot = `
+      <div style="border:1px solid rgba(120,160,170,0.18);border-radius:12px;padding:16px 18px;margin-bottom:22px;background:rgba(255,255,255,0.02)">
+        <p class="about-sub" style="margin-top:0 !important">Humanity snapshot</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <div><div style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${typeof totalVoices === "number" ? totalVoices : "—"}</div><div style="font-size:11.5px;color:#56616F">voices heard</div></div>
+          <div><div style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${regionCount || "—"}</div><div style="font-size:11.5px;color:#56616F">regions represented</div></div>
+          <div style="grid-column:1/-1"><div style="font-size:14px;color:#C9B8F0">${topLabel}</div><div style="font-size:11.5px;color:#56616F">most active topic</div></div>
+        </div>
+      </div>`;
+
     const worse = GaiaMind.emergingSignals();
     const better = GaiaMind.improvementSignals();
     const helps = GaiaMind.whatHelps();
 
-    let html = renderSignalGroup("Emerging concerns", worse, "#D9A441");
+    let html = snapshot;
+    html += renderSignalGroup("Emerging concerns", worse, "#D9A441");
     html += `<div style="height:20px"></div>`;
     html += renderSignalGroup("Signals of improvement", better, "#3FBFA8");
 
@@ -841,13 +867,18 @@ function renderHumanityPulse() {
         voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
       </div>
       ${(() => {
-        const tr = t.trend || { dir: "quiet" };
-        const arrow = tr.dir === "growing" ? "↑ Growing" : tr.dir === "easing" ? "↓ Easing" : tr.dir === "stable" ? "→ Stable" : "";
-        const col = tr.dir === "growing" ? "#D9A441" : tr.dir === "easing" ? "#3FBFA8" : "#56616F";
-        return arrow ? `<div style="font-size:12px;color:${col};margin-top:6px">${arrow} this week</div>` : "";
+        const v = t.voices || 0;
+        if (v === 0) return "";
+        /* Below a real sample, never claim a trend — just name the stage */
+        let label, col;
+        if (v < 15)      { label = "New signal";     col = "#56616F"; }
+        else if (v < 120){ label = "Growing";        col = "#D9A441"; }
+        else if (v < 800){ label = "Emerging";       col = "#D9A441"; }
+        else             { label = "Strong signal";  col = "#3FBFA8"; }
+        return `<div style="font-size:12px;color:${col};margin-top:6px">${label}</div>`;
       })()}
       ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
-      ${t.concerns && t.concerns.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
+      ${(t.voices >= 10 && t.concerns && t.concerns.length) ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
         <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
           ${hasResonated(t.key) ? "You feel the same ✓" : "I feel the same"}
