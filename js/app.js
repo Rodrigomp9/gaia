@@ -972,6 +972,70 @@ function setupShare() {
   });
 }
 
+/* ---------- Explore: theme -> places -> voices ---------- */
+
+let exploreTheme = null;
+
+function renderExplore() {
+  const body = document.getElementById("explore-body");
+  if (exploreTheme) {
+    const t = GaiaMind.voiceThemes.find(v => v.key === exploreTheme);
+    const sum = GaiaMind.exploreThemeSummary(exploreTheme);
+    const places = GaiaMind.exploreRegions(exploreTheme);
+
+    let html = `<button id="explore-back" style="background:none;border:none;color:#3FBFA8;font-family:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:14px">&larr; All themes</button>`;
+    html += `<p style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${t.label}</p>`;
+    html += `<div style="display:flex;gap:18px;margin:12px 0 18px;font-size:12.5px;color:#8B98A8">
+      <span><span style="color:#D9A441">${sum.worse}</span> worse</span>
+      <span><span style="color:#3FBFA8">${sum.better}</span> better</span>
+      <span><span style="color:#C9B8F0">${sum.resonance}</span> resonate</span>
+    </div>`;
+
+    if (sum.total >= 10 && (sum.concernsWorse.length || sum.concernsBetter.length)) {
+      if (sum.concernsWorse.length)
+        html += `<div style="font-size:12.5px;color:#8B98A8;margin-bottom:6px">Recurring where worse: <span style="color:#E8EDF2">${sum.concernsWorse.join(", ")}</span></div>`;
+      if (sum.concernsBetter.length)
+        html += `<div style="font-size:12.5px;color:#8B98A8;margin-bottom:14px">Recurring where better: <span style="color:#E8EDF2">${sum.concernsBetter.join(", ")}</span></div>`;
+    }
+
+    if (places.length) {
+      html += `<p class="about-sub">By place</p>`;
+      html += places.map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+          <span style="font-size:14px;color:#E8EDF2">${p.place}</span>
+          <span style="font-size:11.5px;color:#56616F">${p.voices} voice${p.voices === 1 ? "" : "s"} · <span style="color:#D9A441">${p.worse}↓</span> <span style="color:#3FBFA8">${p.better}↑</span></span>
+        </div>`).join("");
+    } else {
+      html += `<p style="font-size:13px;color:#8B98A8">No located voices in this theme yet. When people share what they're experiencing here, places will appear.</p>`;
+    }
+    body.innerHTML = html;
+
+    const back = document.getElementById("explore-back");
+    if (back) back.addEventListener("click", () => { exploreTheme = null; renderExplore(); });
+  } else {
+    /* theme list with counts */
+    body.innerHTML = GaiaMind.voiceThemes.map(t => {
+      const s = GaiaMind.exploreThemeSummary(t.key);
+      return `<button class="explore-theme" data-key="${t.key}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;color:var(--text-soft);font-family:inherit;cursor:pointer">
+        <span style="font-size:14px;color:#E8EDF2">${t.label}</span>
+        <span style="font-size:12px;color:#56616F">${s.total} voice${s.total === 1 ? "" : "s"} &rarr;</span>
+      </button>`;
+    }).join("");
+    body.querySelectorAll(".explore-theme").forEach(btn => {
+      btn.addEventListener("click", () => { exploreTheme = btn.dataset.key; renderExplore(); });
+    });
+  }
+}
+
+function setupExplore() {
+  const modal = document.getElementById("explore");
+  const open = document.getElementById("explore-open");
+  if (!modal || !open) return;
+  open.addEventListener("click", () => { exploreTheme = null; renderExplore(); modal.classList.add("open"); });
+  document.getElementById("explore-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", e => { if (e.target === e.currentTarget) modal.classList.remove("open"); });
+}
+
 /* ---------- Your Contributions (local, no login) ---------- */
 
 function loadContributions() {
@@ -1080,6 +1144,7 @@ setupSpeak();
 setupHumanityPulse();
 setupMobileSheet();
 setupContributions();
+setupExplore();
 setupShare();
 setupLegend();
 init();

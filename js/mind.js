@@ -248,6 +248,34 @@ const GaiaMind = {
     if (!res.ok) throw new Error("channel closed");
   },
 
+  /* ---------- Explore: navigate voices by place ----------
+     Builds a browsable list from the places people actually
+     named when they spoke. Real, never invented. */
+
+  exploreRegions(themeKey) {
+    const pts = (GaiaData.voicePoints || []).filter(p =>
+      (!themeKey || p.theme === themeKey) && p.place);
+    /* group by the named place */
+    const byPlace = {};
+    pts.forEach(p => {
+      const name = p.place.split(",")[0].trim();
+      if (!byPlace[name]) byPlace[name] = { place: name, voices: 0, better: 0, worse: 0 };
+      byPlace[name].voices += p.count || 1;
+      if (p.direction === "better") byPlace[name].better += p.count || 1;
+      else byPlace[name].worse += p.count || 1;
+    });
+    return Object.values(byPlace).sort((a, b) => b.voices - a.voices);
+  },
+
+  exploreThemeSummary(themeKey) {
+    const worseN = ((GaiaData.voiceWorse && GaiaData.voiceWorse.byTheme) || {})[themeKey] || 0;
+    const betterN = ((GaiaData.voiceBetter && GaiaData.voiceBetter.byTheme) || {})[themeKey] || 0;
+    const reso = (GaiaData.resonanceByTheme || {})[themeKey] || 0;
+    const concernsWorse = ((GaiaData.voiceWorse && GaiaData.voiceWorse.concerns) || {})[themeKey] || [];
+    const concernsBetter = ((GaiaData.voiceBetter && GaiaData.voiceBetter.concerns) || {})[themeKey] || [];
+    return { worse: worseN, better: betterN, total: worseN + betterN, resonance: reso, concernsWorse, concernsBetter };
+  },
+
   /* ---------- Humanity Pulse ----------
      One reading per theme: the voices Gaia has heard,
      blended with what the world's data says beneath them.
