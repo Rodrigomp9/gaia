@@ -440,7 +440,7 @@ function setupSearch() {
 
     places.forEach(p => {
       const btn = document.createElement("button");
-      btn.innerHTML = `${p.name}<span style="display:block;font-size:11.5px;color:#56616F;margin-top:1px">${p.kind}${p.country ? " — " + p.country : ""}</span>`;
+      btn.innerHTML = `${p.name}<span style="display:block;font-size:11.5px;color:#56616F;margin-top:1px">${p.sub || p.kind}</span>`;
       btn.onclick = () => {
         input.value = "";
         results.classList.remove("open");
@@ -481,18 +481,27 @@ function setupSearch() {
 
         const places = raw
           .filter(r => r.lat && r.lon)
-          .map(r => ({
-            name: r.name || (r.display_name || "").split(",")[0],
-            kind: (r.addresstype || r.type || "place")
-              .replace(/_/g, " ")
-              .replace(/^\w/, ch => ch.toUpperCase()),
-            country: r.address && r.address.country,
-            cc: r.address && r.address.country_code,
-            lat: +r.lat,
-            lng: +r.lon,
-            type: r.addresstype || r.type
-          }))
-          .slice(0, 5);
+          .map(r => {
+            const ad = r.address || {};
+            const region = ad.state || ad.region || ad.province || ad.state_district || ad.county || "";
+            const kind = (r.addresstype || r.type || "place")
+              .replace(/_/g, " ").replace(/^\w/, ch => ch.toUpperCase());
+            /* Subtitle that disambiguates same-named places:
+               "Municipality · Paraná — Brazil" */
+            const parts = [kind];
+            if (region) parts.push(region);
+            const sub = parts.join(" · ") + (ad.country ? " — " + ad.country : "");
+            return {
+              name: r.name || (r.display_name || "").split(",")[0],
+              kind, region, sub,
+              country: ad.country,
+              cc: ad.country_code,
+              lat: +r.lat,
+              lng: +r.lon,
+              type: r.addresstype || r.type
+            };
+          })
+          .slice(0, 6);
 
         render(countryMatches, places, false);
       } catch (e) {
@@ -563,7 +572,7 @@ function openPlace(p) {
   body.innerHTML = html;
 
   /* Planetary signals near this exact place */
-  currentLocation = { name: p.name + (p.country ? ", " + p.country : ""), lat: p.lat, lng: p.lng };
+  currentLocation = { name: p.name + (p.region ? ", " + p.region : "") + (p.country ? ", " + p.country : ""), lat: p.lat, lng: p.lng };
   const near = GaiaMind.planetNear(p.lat, p.lng);
   const status = document.querySelector(".region-status");
   let sHtml = near > 0
@@ -670,11 +679,14 @@ function setupSpeak() {
         const raw = await res.json();
         if (locLast !== q) return;
         locResults.innerHTML = "";
-        raw.filter(r => r.lat && r.lon).slice(0, 5).forEach(r => {
-          const name = (r.name || (r.display_name || "").split(",")[0]) +
-            (r.address && r.address.country ? ", " + r.address.country : "");
+        raw.filter(r => r.lat && r.lon).slice(0, 6).forEach(r => {
+          const ad = r.address || {};
+          const region = ad.state || ad.region || ad.province || ad.state_district || ad.county || "";
+          const base = r.name || (r.display_name || "").split(",")[0];
+          /* Full name disambiguates: "Londrina, Paraná, Brazil" */
+          const name = base + (region ? ", " + region : "") + (ad.country ? ", " + ad.country : "");
           const b = document.createElement("button");
-          b.textContent = name;
+          b.innerHTML = `${base}<span style="display:block;font-size:11px;color:#56616F">${[region, ad.country].filter(Boolean).join(" — ")}</span>`;
           b.onclick = () => {
             speakLocation = { name, lat: +r.lat, lng: +r.lon };
             locInput.value = name;
