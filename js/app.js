@@ -785,6 +785,27 @@ function setupHumanityPulse() {
   });
 }
 
+/* ---------- Share this insight ---------- */
+
+function setupShare() {
+  const btn = document.getElementById("daily-share");
+  btn.addEventListener("click", async () => {
+    const insight = document.getElementById("daily-text").textContent;
+    if (!insight) return;
+    const text = `"${insight}"\n\n— GAIA, an assistant for collective understanding\n${location.origin}`;
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch (e) { /* user closed the sheet */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        const prev = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = prev; }, 2200);
+      } catch (e) {}
+    }
+  });
+}
+
 function setupLegend() {
   const wire = (id, fn) => {
     const el = document.getElementById(id);
@@ -800,5 +821,6 @@ function setupLegend() {
 
 setupSpeak();
 setupHumanityPulse();
+setupShare();
 setupLegend();
 init();
