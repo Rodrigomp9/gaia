@@ -732,12 +732,25 @@ function setupSpeak() {
         const better = chosenDirection === "better";
         const head = better
           ? "Your voice strengthens a signal of improvement"
-          : "Your voice strengthens a signal of deterioration";
+          : "Your voice joins a signal of concern";
         const col = better ? "#3FBFA8" : "#D9A441";
+
+        /* Context: how many voices already share this layer-2 signal */
+        const axis = better ? GaiaData.voiceBetter : GaiaData.voiceWorse;
+        const sameLayer2 = GaiaMind.voiceThemes
+          .filter(v => v.layer2 === t.layer2)
+          .reduce((s, v) => s + (((axis && axis.byTheme) || {})[v.key] || 0), 0);
+        const worldwide = sameLayer2 + 1; /* include the one just sent */
+
+        const placeLine = speakLocation
+          ? `1 voice in ${speakLocation.name.split(",")[0]}` : "shared worldwide";
+
         echo.innerHTML =
           `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">${head}</p>` +
-          `<p style="font-family:Marcellus,serif;font-size:20px;color:${col}">${t.layer2}</p>` +
-          `<p style="font-size:13px;color:#8B98A8;margin-top:6px">${t.label}${speakLocation ? " · " + speakLocation.name : " · worldwide"}</p>`;
+          `<p style="font-family:Marcellus,serif;font-size:21px;color:${col}">${t.layer2}</p>` +
+          `<p style="font-size:13px;color:#8B98A8;margin-top:8px">${t.label} · ${placeLine}</p>` +
+          `<p style="font-size:13px;color:#8B98A8;margin-top:4px">${worldwide} voice${worldwide === 1 ? "" : "s"} worldwide in this signal</p>` +
+          `<p style="font-size:12px;color:#56616F;margin-top:10px;font-style:italic">No signal has emerged yet — patterns need many. Thank you for being one of them.</p>`;
       }
       document.getElementById("speak-form").style.display = "none";
       document.getElementById("speak-done").style.display = "";
@@ -791,8 +804,11 @@ function renderHumanityPulse() {
             </div>
           </div>`).join("");
     }
+    const heard = GaiaData.globalPulse.voices;
+    const heardLine = (typeof heard === "number" && heard > 0)
+      ? `${heard} voice${heard === 1 ? "" : "s"} heard so far.` : "";
     return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
-      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">Gaia is still listening. A signal is named only when enough voices gather across enough regions.</p>`;
+      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">No collective signal has emerged yet. Gaia is listening. ${heardLine}</p>`;
   };
 
   if (sigBox) {
@@ -814,7 +830,8 @@ function renderHumanityPulse() {
     sigBox.innerHTML = html;
   }
 
-  body.innerHTML = themes.map(t => `
+  const themesHeader = `<p class="about-sub" style="margin-top:4px">Explore by topic</p>`;
+  body.innerHTML = themesHeader + themes.map(t => `
     <div style="border:1px solid rgba(120,160,170,0.14);border-radius:12px;padding:16px 18px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:14.5px;color:#E8EDF2">${t.label}</span>
