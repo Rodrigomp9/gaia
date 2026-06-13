@@ -69,6 +69,8 @@ module.exports = async (req, res) => {
 
     let theme = String(b.theme || "");
     if (LEGACY[theme]) theme = LEGACY[theme];
+    let direction = String(b.direction || "worse");
+    if (direction !== "worse" && direction !== "better") direction = "worse";
     const message = String(b.message || "").trim().slice(0, 500);
     /* null/absent stays null — Number(null) would become 0,0:
        a phantom voice floating in the Atlantic */
@@ -90,6 +92,7 @@ module.exports = async (req, res) => {
 
     const row = {
       theme,
+      direction,
       message,
       lat,
       lng,
@@ -126,7 +129,7 @@ module.exports = async (req, res) => {
 
   /* ---------- Patterns, never posts ---------- */
   if (req.method === "GET") {
-    const r = await sb("voices?select=theme,lat,lng,message,created_at&limit=8000");
+    const r = await sb("voices?select=theme,direction,lat,lng,message,created_at&limit=8000");
     if (!r.ok) {
       res.status(502).json({ error: "could not read voices" });
       return;
@@ -137,18 +140,22 @@ module.exports = async (req, res) => {
     const WEEK = 7 * 86400000;
     const STOP = new Set(("the a an and or but of to in on at for with from is are was were be been being i my we our you your it its this that these those they them their he she his her not no yes do does did have has had will would can could should about more most very just so if than then there here what when where who how why as also out up down over under into".split(" ")));
 
-    const byTheme = {};
+    /* Two axes: deterioration (worse) and improvement (better) */
+    const mk = () => ({ byTheme: {}, words: {} });
+    const axis = { worse: mk(), better: mk() };
+    const byTheme = {};      /* combined, for legacy callers */
     const cluster = {};
-    const trendNow = {};   /* last 7 days */
-    const trendPrev = {};  /* the 7 days before that */
-    const words = {};      /* theme -> {word: count} */
+    const trendNow = {};
+    const trendPrev = {};
 
     rows.forEach(v => {
+      const dir = v.direction === "better" ? "better" : "worse";
       byTheme[v.theme] = (byTheme[v.theme] || 0) + 1;
+      axis[dir].byTheme[v.theme] = (axis[dir].byTheme[v.theme] || 0) + 1;
 
       if (v.lat != null && v.lng != null) {
-        const k = v.lat + "|" + v.lng + "|" + v.theme;
-        if (!cluster[k]) cluster[k] = { lat: v.lat, lng: v.lng, theme: v.theme, count: 0 };
+        const k = dir + "|" + v.lat + "|" + v.lng + "|" + v.theme;
+        if (!cluster[k]) cluster[k] = { lat: v.lat, lng: v.lng, theme: v.theme, direction: dir, count: 0 };
         cluster[k].count++;
       }
 
@@ -157,26 +164,27 @@ module.exports = async (req, res) => {
       else if (age <= 2 * WEEK) trendPrev[v.theme] = (trendPrev[v.theme] || 0) + 1;
 
       if (v.message) {
-        words[v.theme] = words[v.theme] || {};
+        const wmap = axis[dir].words;
+        wmap[v.theme] = wmap[v.theme] || {};
         String(v.message).toLowerCase()
           .replace(/[^a-z\u00C0-\u017F\s]/g, " ")
           .split(/\s+/)
           .forEach(w => {
             if (w.length < 4 || STOP.has(w)) return;
-            words[v.theme][w] = (words[v.theme][w] || 0) + 1;
+            wmap[v.theme][w] = (wmap[v.theme][w] || 0) + 1;
           });
       }
     });
 
-    /* Top real keywords per theme — never invented */
-    const concerns = {};
-    Object.keys(words).forEach(t => {
-      concerns[t] = Object.entries(words[t])
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .filter(([w, c]) => c >= 2)   /* a word must repeat to be a pattern */
-        .map(([w]) => w);
-    });
+    const topWords = wmap => {
+      const out = {};
+      Object.keys(wmap).forEach(t => {
+        out[t] = Object.entries(wmap[t])
+          .sort((a, b) => b[1] - a[1]).slice(0, 3)
+          .filter(([w, c]) => c >= 2).map(([w]) => w);
+      });
+      return out;
+    };
 
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
     res.status(200).json({
@@ -185,7 +193,8 @@ module.exports = async (req, res) => {
       points: Object.values(cluster),
       trendNow,
       trendPrev,
-      concerns
+      worse: { byTheme: axis.worse.byTheme, concerns: topWords(axis.worse.words) },
+      better: { byTheme: axis.better.byTheme, concerns: topWords(axis.better.words) }
     });
     return;
   }

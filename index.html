@@ -168,6 +168,19 @@
     <p style="font-size:13.5px">What are you experiencing where you live? Your voice is anonymous — Gaia never shows individual messages, only the patterns that emerge when many speak.</p>
 
     <div id="speak-form">
+      <p class="about-sub">What do you want Gaia to hear?</p>
+      <div id="direction-choice" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+        <button class="dir-card" data-dir="worse">
+          <span class="dir-title">Something getting worse</span>
+          <span class="dir-sub">What is becoming harder, heavier, or more concerning?</span>
+        </button>
+        <button class="dir-card" data-dir="better">
+          <span class="dir-title">Something getting better</span>
+          <span class="dir-sub">What is improving, helping, or giving hope?</span>
+        </button>
+      </div>
+
+      <div id="speak-rest" style="display:none">
       <p class="about-sub">Choose a theme</p>
       <div class="theme-chips" id="theme-chips"></div>
 
@@ -184,6 +197,7 @@
 
       <button id="speak-send" class="speak-btn" style="width:100%;margin-top:16px;justify-content:center">Send to Gaia</button>
       <p id="speak-error" style="font-size:12px;color:#D9A441;margin-top:8px;display:none"></p>
+      </div>
     </div>
 
     <div id="speak-done" style="display:none;text-align:center;padding:18px 0">

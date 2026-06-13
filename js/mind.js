@@ -294,6 +294,55 @@ const GaiaMind = {
     return { dir: "stable", now, prev };
   },
 
+  /* ---------- Layer 3b: Signals of Improvement ----------
+     The same honest thresholds, but for what people report
+     is getting better — the collective learning of humanity. */
+
+  improvementSignals() {
+    const byTheme = (GaiaData.voiceBetter && GaiaData.voiceBetter.byTheme) || {};
+    const pts = (GaiaData.voicePoints || []).filter(p => p.direction === "better");
+
+    const sig = {};
+    this.voiceThemes.forEach(t => {
+      const s = t.layer2;
+      if (!sig[s]) sig[s] = { signal: s, voices: 0, regionSet: new Set() };
+      sig[s].voices += byTheme[t.key] || 0;
+    });
+    pts.forEach(p => {
+      const t = this.voiceThemes.find(v => v.key === p.theme);
+      if (!t) return;
+      sig[t.layer2].regionSet.add(Math.round(p.lat / 8) + "," + Math.round(p.lng / 8));
+    });
+
+    const TIERS = [
+      { name: "High confidence",     dot: "green",  voices: 1000, regions: 15, label: "Global improvement" },
+      { name: "Moderate confidence", dot: "amber",  voices: 150,  regions: 5,  label: "Emerging improvement" },
+      { name: "Low confidence",      dot: "yellow", voices: 30,   regions: 2,  label: "Early sign of hope" }
+    ];
+
+    return Object.values(sig).map(s => {
+      const regions = s.regionSet.size;
+      let tier = null;
+      for (const T of TIERS) {
+        if (s.voices >= T.voices && regions >= T.regions) { tier = T; break; }
+      }
+      return { signal: s.signal, voices: s.voices, regions,
+        tier: tier ? tier.name : null, tierLabel: tier ? tier.label : null,
+        dot: tier ? tier.dot : null };
+    }).sort((a, b) => b.voices - a.voices);
+  },
+
+  /* What people mention where things are improving — collective learning */
+  whatHelps() {
+    const concerns = (GaiaData.voiceBetter && GaiaData.voiceBetter.concerns) || {};
+    const out = [];
+    this.voiceThemes.forEach(t => {
+      const words = concerns[t.key];
+      if (words && words.length) out.push({ label: t.label, words });
+    });
+    return out;
+  },
+
   /* ---------- Layer 3: Emerging Signals (with confidence) ----------
      Honest by design. Confidence rises with the number of
      voices, the number of regions, AND geographic diversity —
@@ -301,8 +350,8 @@ const GaiaMind = {
      measure humanity; only the voices that chose to speak. */
 
   emergingSignals() {
-    const byTheme = GaiaData.voiceByTheme || {};
-    const pts = GaiaData.voicePoints || [];
+    const byTheme = (GaiaData.voiceWorse && GaiaData.voiceWorse.byTheme) || {};
+    const pts = (GaiaData.voicePoints || []).filter(p => p.direction !== "better");
 
     const sig = {};
     this.voiceThemes.forEach(t => {
@@ -506,7 +555,9 @@ const GaiaMind = {
       GaiaData.voiceByTheme = data.byTheme || {};
       GaiaData.voiceTrendNow = data.trendNow || {};
       GaiaData.voiceTrendPrev = data.trendPrev || {};
-      GaiaData.voiceConcerns = data.concerns || {};
+      GaiaData.voiceWorse = data.worse || { byTheme: {}, concerns: {} };
+      GaiaData.voiceBetter = data.better || { byTheme: {}, concerns: {} };
+      GaiaData.voiceConcerns = (data.worse && data.worse.concerns) || {};
       GaiaData.globalPulse.voices = data.total || 0;
       return GaiaData.voicePoints;
     } catch (e) {

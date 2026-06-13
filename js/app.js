@@ -595,11 +595,24 @@ document.getElementById("about").addEventListener("click", e => {
 /* ---------- Speak to Gaia ---------- */
 
 let chosenTheme = null;
+let chosenDirection = null;
 let speakLocation = null;
 
 function setupSpeak() {
   const modal = document.getElementById("speak");
   const chips = document.getElementById("theme-chips");
+
+  const dirCards = document.getElementById("direction-choice");
+  if (dirCards) {
+    [...dirCards.querySelectorAll(".dir-card")].forEach(card => {
+      card.addEventListener("click", () => {
+        chosenDirection = card.dataset.dir;
+        [...dirCards.children].forEach(c => c.classList.remove("sel"));
+        card.classList.add("sel");
+        document.getElementById("speak-rest").style.display = "";
+      });
+    });
+  }
 
   GaiaMind.voiceThemes.forEach(t => {
     const b = document.createElement("button");
@@ -609,7 +622,9 @@ function setupSpeak() {
       [...chips.children].forEach(c => c.classList.remove("sel"));
       b.classList.add("sel");
       const ta = document.getElementById("speak-text");
-      if (ta) ta.placeholder = t.prompt;
+      if (ta) ta.placeholder = chosenDirection === "better"
+        ? "What is improving here? What seems to be helping?"
+        : t.prompt;
     };
     chips.appendChild(b);
   });
@@ -625,6 +640,11 @@ function setupSpeak() {
     document.getElementById("speak-done").style.display = "none";
     document.getElementById("speak-error").style.display = "none";
     speakLocation = currentLocation || null;
+    chosenDirection = null;
+    chosenTheme = null;
+    document.querySelectorAll("#direction-choice .dir-card").forEach(c => c.classList.remove("sel"));
+    document.querySelectorAll("#theme-chips button").forEach(c => c.classList.remove("sel"));
+    document.getElementById("speak-rest").style.display = "none";
     document.getElementById("speak-loc").value = speakLocation ? speakLocation.name : "";
     whereLine();
     modal.classList.add("open");
@@ -678,8 +698,11 @@ function setupSpeak() {
     const err = document.getElementById("speak-error");
     const msg = document.getElementById("speak-text").value.trim();
 
+    if (!chosenDirection) {
+      err.textContent = "First choose: getting worse or getting better?"; err.style.display = ""; return;
+    }
     if (!chosenTheme) {
-      err.textContent = "Choose a theme first."; err.style.display = ""; return;
+      err.textContent = "Choose a theme."; err.style.display = ""; return;
     }
     if (msg.length < 2) {
       err.textContent = "Write a few words — Gaia is listening."; err.style.display = ""; return;
@@ -688,6 +711,7 @@ function setupSpeak() {
 
     const payload = {
       theme: chosenTheme,
+      direction: chosenDirection,
       message: msg,
       lat: speakLocation ? speakLocation.lat : null,
       lng: speakLocation ? speakLocation.lng : null,
@@ -705,9 +729,14 @@ function setupSpeak() {
       const t = GaiaMind.voiceThemes.find(v => v.key === chosenTheme);
       const echo = document.getElementById("speak-echo");
       if (echo && t) {
+        const better = chosenDirection === "better";
+        const head = better
+          ? "Your voice strengthens a signal of improvement"
+          : "Your voice strengthens a signal of deterioration";
+        const col = better ? "#3FBFA8" : "#D9A441";
         echo.innerHTML =
-          `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">Your signal contributes to</p>` +
-          `<p style="font-family:Marcellus,serif;font-size:20px;color:#C9B8F0">${t.layer2}</p>` +
+          `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">${head}</p>` +
+          `<p style="font-family:Marcellus,serif;font-size:20px;color:${col}">${t.layer2}</p>` +
           `<p style="font-size:13px;color:#8B98A8;margin-top:6px">${t.label}${speakLocation ? " · " + speakLocation.name : " · worldwide"}</p>`;
       }
       document.getElementById("speak-form").style.display = "none";
@@ -743,33 +772,46 @@ function renderHumanityPulse() {
   const totalVoices = themes.reduce((s, t) => s + t.voices, 0);
 
   /* Layer 3 — emerging signals, shown above the themes */
-  const signals = GaiaMind.emergingSignals();
-  const named = signals.filter(s => s.tier);
-  const sigBox = document.getElementById("hpulse-signals");
   const dotColor = { green: "#3FBFA8", amber: "#D9A441", yellow: "#C9B8F0" };
-  if (sigBox) {
+  const sigBox = document.getElementById("hpulse-signals");
+
+  const renderSignalGroup = (title, list, accent) => {
+    const named = list.filter(s => s.tier);
     if (named.length) {
-      sigBox.innerHTML =
-        `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
-        named.map(s => {
-          const arrow = s.dir === "growing" ? "↑" : s.dir === "easing" ? "↓" : "→";
-          return `<div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+      return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
+        named.map(s => `
+          <div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
             <div style="display:flex;justify-content:space-between;align-items:baseline">
-              <span style="font-size:14px;color:#E8EDF2">${s.signal} <span style="color:#8B98A8">${arrow}</span></span>
+              <span style="font-size:14px;color:#E8EDF2">${s.signal}</span>
               <span style="font-size:11.5px;color:#56616F">${s.regions} region${s.regions === 1 ? "" : "s"}</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
               <span style="width:8px;height:8px;border-radius:50%;background:${dotColor[s.dot]};display:inline-block"></span>
               <span style="font-size:11.5px;color:#8B98A8">${s.tier} · ${s.tierLabel}</span>
             </div>
-          </div>`;
-        }).join("") + `<div style="height:18px"></div>`;
-    } else {
-      sigBox.innerHTML =
-        `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
-        `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:12px">Gaia is still listening. A signal is named only when enough voices gather across enough regions — never sooner. Patterns earn their name.</p>`;
+          </div>`).join("");
     }
-    sigBox.innerHTML += `<p style="font-size:11.5px;color:#56616F;line-height:1.6;margin-bottom:18px;font-style:italic">Gaia measures the voices that choose to participate — not humanity itself.</p>`;
+    return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
+      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">Gaia is still listening. A signal is named only when enough voices gather across enough regions.</p>`;
+  };
+
+  if (sigBox) {
+    const worse = GaiaMind.emergingSignals();
+    const better = GaiaMind.improvementSignals();
+    const helps = GaiaMind.whatHelps();
+
+    let html = renderSignalGroup("Emerging concerns", worse, "#D9A441");
+    html += `<div style="height:20px"></div>`;
+    html += renderSignalGroup("Signals of improvement", better, "#3FBFA8");
+
+    if (helps.length) {
+      html += `<div style="height:20px"></div>` +
+        `<p class="about-sub" style="margin-top:0 !important;color:#3FBFA8 !important">Where things improve, people mention</p>` +
+        helps.map(h => `<div style="font-size:13px;color:#8B98A8;margin-bottom:8px"><span style="color:#E8EDF2">${h.label}:</span> ${h.words.join(", ")}</div>`).join("");
+    }
+
+    html += `<div style="height:14px"></div><p style="font-size:11.5px;color:#56616F;line-height:1.6;margin-bottom:18px;font-style:italic">Gaia measures the voices that choose to participate — not humanity itself.</p>`;
+    sigBox.innerHTML = html;
   }
 
   body.innerHTML = themes.map(t => `
