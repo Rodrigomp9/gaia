@@ -744,24 +744,32 @@ function renderHumanityPulse() {
 
   /* Layer 3 — emerging signals, shown above the themes */
   const signals = GaiaMind.emergingSignals();
-  const named = signals.filter(s => s.level);
+  const named = signals.filter(s => s.tier);
   const sigBox = document.getElementById("hpulse-signals");
+  const dotColor = { green: "#3FBFA8", amber: "#D9A441", yellow: "#C9B8F0" };
   if (sigBox) {
     if (named.length) {
       sigBox.innerHTML =
         `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
         named.map(s => {
           const arrow = s.dir === "growing" ? "↑" : s.dir === "easing" ? "↓" : "→";
-          return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
-            <span style="font-size:14px;color:#E8EDF2">${s.signal} <span style="color:#D9A441">${arrow}</span></span>
-            <span style="font-size:11.5px;color:#56616F">${s.level} · ${s.regions} region${s.regions === 1 ? "" : "s"}</span>
+          return `<div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:14px;color:#E8EDF2">${s.signal} <span style="color:#8B98A8">${arrow}</span></span>
+              <span style="font-size:11.5px;color:#56616F">${s.regions} region${s.regions === 1 ? "" : "s"}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${dotColor[s.dot]};display:inline-block"></span>
+              <span style="font-size:11.5px;color:#8B98A8">${s.tier} · ${s.tierLabel}</span>
+            </div>
           </div>`;
         }).join("") + `<div style="height:18px"></div>`;
     } else {
       sigBox.innerHTML =
         `<p class="about-sub" style="margin-top:0 !important">Emerging signals</p>` +
-        `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:18px">Gaia is still listening. A signal is named only when enough voices gather across enough regions — never sooner. Patterns earn their name.</p>`;
+        `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:12px">Gaia is still listening. A signal is named only when enough voices gather across enough regions — never sooner. Patterns earn their name.</p>`;
     }
+    sigBox.innerHTML += `<p style="font-size:11.5px;color:#56616F;line-height:1.6;margin-bottom:18px;font-style:italic">Gaia measures the voices that choose to participate — not humanity itself.</p>`;
   }
 
   body.innerHTML = themes.map(t => `
@@ -847,6 +855,46 @@ function setupShare() {
   });
 }
 
+/* ---------- Mobile sheet: relocate pulse + legend on phones ---------- */
+
+function setupMobileSheet() {
+  const dock = document.getElementById("mobile-dock");
+  const sheet = document.getElementById("mobile-sheet");
+  const body = document.getElementById("mobile-sheet-body");
+  if (!dock || !sheet || !body) return;
+
+  const isMobile = () => window.matchMedia("(max-width: 720px)").matches;
+
+  function placeInSheet() {
+    const pulse = document.querySelector(".panel .pulse");
+    const legend = document.querySelector(".panel .legend");
+    if (pulse && pulse.parentElement !== body) body.appendChild(pulse);
+    if (legend && legend.parentElement !== body) body.appendChild(legend);
+  }
+  function placeInPanel() {
+    const panel = document.querySelector(".panel");
+    const footer = document.querySelector(".panel-footer");
+    const pulse = document.getElementById("pulse-planet") ? document.querySelector("#mobile-sheet-body .pulse") : null;
+    const legend = document.querySelector("#mobile-sheet-body .legend");
+    if (pulse) panel.insertBefore(pulse, footer);
+    if (legend) panel.insertBefore(legend, footer);
+  }
+
+  if (isMobile()) placeInSheet();
+
+  dock.addEventListener("click", () => { placeInSheet(); sheet.classList.add("open"); });
+  document.getElementById("mobile-sheet-close").addEventListener("click", () =>
+    sheet.classList.remove("open"));
+  sheet.addEventListener("click", e => {
+    if (e.target === sheet) sheet.classList.remove("open");
+  });
+
+  window.addEventListener("resize", () => {
+    if (isMobile()) placeInSheet();
+    else { placeInPanel(); sheet.classList.remove("open"); }
+  });
+}
+
 function setupLegend() {
   const wire = (id, fn) => {
     const el = document.getElementById(id);
@@ -862,6 +910,7 @@ function setupLegend() {
 
 setupSpeak();
 setupHumanityPulse();
+setupMobileSheet();
 setupShare();
 setupLegend();
 init();

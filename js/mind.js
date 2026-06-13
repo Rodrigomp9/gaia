@@ -294,16 +294,16 @@ const GaiaMind = {
     return { dir: "stable", now, prev };
   },
 
-  /* ---------- Layer 3: Emerging Signals ----------
-     Honest by design. A signal is only named when enough
-     voices gather across enough regions. Below that, Gaia
-     says she is still listening — never invents a pattern. */
+  /* ---------- Layer 3: Emerging Signals (with confidence) ----------
+     Honest by design. Confidence rises with the number of
+     voices, the number of regions, AND geographic diversity —
+     the antidote to participation bias. Gaia never claims to
+     measure humanity; only the voices that chose to speak. */
 
   emergingSignals() {
     const byTheme = GaiaData.voiceByTheme || {};
     const pts = GaiaData.voicePoints || [];
 
-    /* Aggregate voices + regions into Layer-2 signals */
     const sig = {};
     this.voiceThemes.forEach(t => {
       const s = t.layer2;
@@ -314,22 +314,23 @@ const GaiaMind = {
     pts.forEach(p => {
       const t = this.voiceThemes.find(v => v.key === p.theme);
       if (!t) return;
+      /* coarse cells (~8°) for region count + diversity */
       sig[t.layer2].regionSet.add(Math.round(p.lat / 8) + "," + Math.round(p.lng / 8));
     });
 
-    const LEVELS = [
-      { name: "Global Signal",   voices: 300, regions: 10 },
-      { name: "Emerging Signal", voices: 100, regions: 5 },
-      { name: "Weak Signal",     voices: 50,  regions: 3 }
+    /* Confidence tiers: voices + regions thresholds */
+    const TIERS = [
+      { name: "High confidence",     dot: "green",  voices: 1000, regions: 15, label: "Global signal" },
+      { name: "Moderate confidence", dot: "amber",  voices: 150,  regions: 5,  label: "Emerging pattern" },
+      { name: "Low confidence",      dot: "yellow", voices: 30,   regions: 2,  label: "Early observation" }
     ];
 
     return Object.values(sig).map(s => {
       const regions = s.regionSet.size;
-      let level = null;
-      for (const L of LEVELS) {
-        if (s.voices >= L.voices && regions >= L.regions) { level = L.name; break; }
+      let tier = null;
+      for (const T of TIERS) {
+        if (s.voices >= T.voices && regions >= T.regions) { tier = T; break; }
       }
-      /* trend across this signal's themes */
       let now = 0, prev = 0;
       s.themes.forEach(k => {
         now += (GaiaData.voiceTrendNow || {})[k] || 0;
@@ -337,11 +338,18 @@ const GaiaMind = {
       });
       const dir = now > prev ? "growing" : now < prev ? "easing"
         : (now || prev) ? "stable" : "quiet";
-      return { signal: s.signal, voices: s.voices, regions, level, dir };
+      return {
+        signal: s.signal,
+        voices: s.voices,
+        regions,
+        tier: tier ? tier.name : null,
+        tierLabel: tier ? tier.label : null,
+        dot: tier ? tier.dot : null,
+        dir
+      };
     }).sort((a, b) => b.voices - a.voices);
   },
 
-  signalThresholds: { weakVoices: 50, weakRegions: 3 },
 
   /* Layer 2 — Gaia's deeper aggregation across all voices */
   layer2Signals() {

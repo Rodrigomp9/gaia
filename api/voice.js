@@ -96,6 +96,20 @@ module.exports = async (req, res) => {
       place: String(b.place || "").slice(0, 120) || null
     };
 
+    /* Basic spam guard (no login — keeps "anyone can speak"):
+       reject exact duplicate of a very recent voice. */
+    try {
+      const dupUrl = "voices?select=id&message=eq." +
+        encodeURIComponent(message) + "&theme=eq." + encodeURIComponent(theme) +
+        "&created_at=gte." + new Date(Date.now() - 10 * 60 * 1000).toISOString() +
+        "&limit=1";
+      const dup = await sb(dupUrl);
+      if (dup.ok) {
+        const found = await dup.json();
+        if (found.length) { res.status(200).json({ heard: true, deduped: true }); return; }
+      }
+    } catch (e) { /* if the check fails, continue — never block a real voice */ }
+
     const r = await sb("voices", {
       method: "POST",
       body: JSON.stringify(row),
