@@ -213,13 +213,6 @@ const GaiaMind = {
       );
     }
 
-    if (GaiaData.planetSignals && GaiaData.planetSignals.length) {
-      lines.push(
-        `The Earth itself pulsed ${GaiaData.planetSignals.length} times this ` +
-        `week — beneath all of us, equally.`
-      );
-    }
-
     GaiaData.synthesis = lines;
     return lines;
   },
@@ -482,11 +475,6 @@ const GaiaMind = {
       const calm = Math.round(100 * homs.filter(v => v < 5).length / homs.length);
       candidates.push(
         `${calm}% of nations live with low violence. Peace is the quiet majority of the Earth.`);
-    }
-
-    if (GaiaData.planetSignals && GaiaData.planetSignals.length) {
-      candidates.push(
-        `The Earth pulsed ${GaiaData.planetSignals.length} times this week — felt beneath every border equally.`);
     }
 
     if (!candidates.length) return null;

@@ -32,10 +32,10 @@ const THEME_LABELS = {
 };
 
 function refreshPoints() {
-  globe.pointsData(
-    (showPlanet ? planetPts : []).concat(showVoices ? voicePts : [])
-  );
-  globe.ringsData(showPlanet ? planetRings : []);
+  /* Voices ARE the planet's pulse now — each one a ripple of human
+     experience. Gold = something getting worse, aqua = getting better. */
+  globe.pointsData([]);
+  globe.ringsData(showVoices ? voicePts : []);
 }
 
 /* Color ramp for shared wellbeing: cold deep blue (low)
@@ -221,50 +221,25 @@ async function init() {
      Each sense is independent. If one is slow or fails,
      the others live on. */
 
-  /* Shared point accessors — planet gold, voices violet */
-  globe
-    .pointColor(d => d.type === "voice"
-      ? "rgba(201, 184, 240, 0.9)"
-      : "rgba(217, 164, 65, 0.85)")
-    .pointAltitude(d => d.type === "voice" ? 0.012 : 0.004)
-    .pointRadius(d => d.type === "voice"
-      ? Math.min(1.1, 0.25 + 0.12 * Math.sqrt(d.count))
-      : Math.max(0.12, d.mag * 0.07))
-    .pointLabel(d => `
-      <div style="
-        font-family: Inter, sans-serif;
-        font-size: 12px;
-        color: #E8EDF2;
-        background: rgba(10,16,26,0.9);
-        border: 1px solid ${d.type === "voice"
-          ? "rgba(201,184,240,0.4)" : "rgba(217,164,65,0.35)"};
-        border-radius: 8px;
-        padding: 6px 10px;
-      ">${d.type === "voice"
-        ? `${d.count} voice${d.count > 1 ? "s" : ""} · ${THEME_LABELS[d.theme] || d.theme}`
-        : `M${d.mag.toFixed(1)} — ${d.place}`}</div>
-    `);
+  /* Voices render as pulsing rings (see refreshPoints); points stay empty. */
 
-  /* Sense 1 — the planet's pulse */
-  GaiaMind.listenPlanet().then(planet => {
-    if (planet.length) {
-      planetRings = planet;
-      globe
-        .ringsData(planet)
-        .ringColor(() => t => `rgba(217, 164, 65, ${Math.max(0, 0.7 - t)})`)
-        .ringMaxRadius(d => Math.max(1.2, d.mag * 1.1))
-        .ringPropagationSpeed(1.4)
-        .ringRepeatPeriod(2600);
-      planetPts = planet;
-      refreshPoints();
-    }
-    fillPulse();
-  });
+  /* The pulse of the planet is now human: voices ripple outward,
+     gold where things worsen, aqua where they improve. */
+  globe
+    .ringColor(d => {
+      const better = d.direction === "better";
+      return t => better
+        ? `rgba(63, 191, 168, ${Math.max(0, 0.7 - t)})`
+        : `rgba(217, 164, 65, ${Math.max(0, 0.7 - t)})`;
+    })
+    .ringMaxRadius(d => Math.max(1.4, Math.min(5, 1.2 + (d.count || 1) * 0.5)))
+    .ringPropagationSpeed(1.3)
+    .ringRepeatPeriod(2400);
 
   /* Resonance counts */
   GaiaMind.listenResonance();
 
-  /* Sense 3 — voices spoken to Gaia */
+  /* Voices — the planet's human pulse */
   GaiaMind.listenVoices().then(v => {
     voicePts = v;
     refreshPoints();
@@ -318,7 +293,7 @@ function startSynthesis(lines) {
 
 function fillPulse() {
   document.getElementById("pulse-planet").textContent =
-    GaiaData.globalPulse.planetSignals;
+    (GaiaData.voicePoints ? GaiaData.voicePoints.length : 0);
   document.getElementById("pulse-human").textContent =
     GaiaData.globalPulse.humanSignals;
   document.getElementById("pulse-voices").textContent =
@@ -368,17 +343,16 @@ function openRegion(feature) {
     body.textContent = GaiaData.emptyRegionMessage;
   }
 
-  /* Real planetary signals near this region */
+  /* Human voices near this region */
   const c0 = centroid(feature);
   currentLocation = { name, lat: c0.lat, lng: c0.lng };
-  const near = GaiaMind.planetNear(c0.lat, c0.lng);
   const status = document.querySelector(".region-status");
-  let sHtml = near > 0
-    ? `Gaia also feels <span style="color:#D9A441">${near} planetary signal${near > 1 ? "s" : ""}</span> near this region in the last 7 days — live seismic data.`
-    : `No planetary signals near this region in the last 7 days. The ground here is quiet.`;
   const vn = GaiaMind.voicesNear(c0.lat, c0.lng);
+  let sHtml = vn.total > 0
+    ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>`
+    : `No voices have spoken to Gaia near here yet. This region is quiet — for now.`;
   if (vn.total > 0) {
-    sHtml += `<br><span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>` +
+    sHtml += ``  +
       (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".");
   }
   status.innerHTML = sHtml;
@@ -571,18 +545,14 @@ function openPlace(p) {
   }
   body.innerHTML = html;
 
-  /* Planetary signals near this exact place */
+  /* Human voices near this exact place */
   currentLocation = { name: p.name + (p.region ? ", " + p.region : "") + (p.country ? ", " + p.country : ""), lat: p.lat, lng: p.lng };
-  const near = GaiaMind.planetNear(p.lat, p.lng);
   const status = document.querySelector(".region-status");
-  let sHtml = near > 0
-    ? `Gaia feels <span style="color:#D9A441">${near} planetary signal${near > 1 ? "s" : ""}</span> near here in the last 7 days — live seismic data.`
-    : `No planetary signals near here in the last 7 days. The ground is quiet.`;
   const vn = GaiaMind.voicesNear(p.lat, p.lng);
-  if (vn.total > 0) {
-    sHtml += `<br><span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>` +
-      (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".");
-  }
+  let sHtml = vn.total > 0
+    ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>` +
+      (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".")
+    : `No voices have spoken to Gaia near here yet. Be the first to share what you're experiencing.`;
   status.innerHTML = sHtml;
 
   document.getElementById("region-panel").classList.add("open");
@@ -1147,8 +1117,7 @@ function setupLegend() {
       fn(!el.classList.contains("off"));
     });
   };
-  wire("leg-planet", v => { showPlanet = v; refreshPoints(); });
-  wire("leg-voices", v => { showVoices = v; refreshPoints(); });
+  wire("leg-planet", v => { showVoices = v; refreshPoints(); });
   wire("leg-well",   v => { showWell = v; globe.hexPolygonColor(hexColor); });
 }
 
