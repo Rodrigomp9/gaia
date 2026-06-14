@@ -178,7 +178,8 @@ function setupIntro() {
   const dismiss = () => {
     intro.classList.add("fade");
     if (globe) {
-      globe.pointOfView({ lat: 10, lng: -30, altitude: 3.6 }, 0);
+      globe.pointOfView({ lat: 10, lng: -30, altitude:
+    window.matchMedia("(max-width: 720px)").matches ? 2.9 : 3.6 }, 0);
       globe.pointOfView({ lat: 10, lng: -30, altitude: 2.2 }, 2400);
     }
     setTimeout(() => intro.remove(), 1500);
@@ -207,12 +208,26 @@ async function init() {
 
 ;
 
+  /* Size the globe to its container on phones (contained), window on desktop */
+  function sizeGlobe() {
+    const mobile = window.matchMedia("(max-width: 720px)").matches;
+    const el = document.getElementById("globe-container");
+    if (mobile && el) {
+      const r = el.getBoundingClientRect();
+      globe.width(r.width).height(r.height);
+      globe.pointOfView({ altitude: 2.9 });
+    } else {
+      globe.width(window.innerWidth).height(window.innerHeight);
+    }
+  }
+
   const controls = globe.controls();
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
   controls.enableDamping = true;
 
-  globe.pointOfView({ lat: 10, lng: -30, altitude: 3.6 }, 0);
+  globe.pointOfView({ lat: 10, lng: -30, altitude:
+    window.matchMedia("(max-width: 720px)").matches ? 2.9 : 3.6 }, 0);
 
   setupIntro();
   setupCountryPointer();
@@ -283,9 +298,8 @@ async function init() {
     fillPulse();
   });
 
-  window.addEventListener("resize", () =>
-    globe.width(window.innerWidth).height(window.innerHeight)
-  );
+  sizeGlobe();
+  window.addEventListener("resize", sizeGlobe);
 }
 
 /* ---------- Synthesis — Gaia speaks ---------- */
