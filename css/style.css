@@ -612,6 +612,17 @@ html, body {
 @media (max-width: 720px) {
   .about-btn { top: 18px; right: 16px; padding: 7px 14px; }
 
+  /* iOS zooms any input under 16px on focus — force 16px on phones.
+     The page no longer jumps/zooms when the keyboard opens. */
+  .search-wrap input,
+  #speak-loc,
+  #speak-text,
+  textarea,
+  input[type="text"],
+  input[type="search"] {
+    font-size: 16px !important;
+  }
+
   .region-panel {
     width: 100vw;
     left: 0;
@@ -633,6 +644,15 @@ html, body {
   /* Keep all panel text inside the screen — no horizontal overflow */
   .region-panel * { max-width: 100%; box-sizing: border-box; }
   .region-panel .region-status { word-wrap: break-word; }
+  .region-panel .region-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    font-size: 26px;
+    padding: 4px 8px;
+    margin: -8px -4px 0 0;
+    z-index: 2;
+  }
 
   .region-panel.open { transform: translateY(0); }
 
