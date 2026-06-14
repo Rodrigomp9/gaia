@@ -33,9 +33,11 @@ const THEME_LABELS = {
 
 function refreshPoints() {
   /* Voices ARE the planet's pulse now — each one a ripple of human
-     experience. Gold = something getting worse, aqua = getting better. */
-  globe.pointsData([]);
-  globe.ringsData(showVoices ? voicePts : []);
+     experience. Gold = something getting worse, aqua = getting better.
+     A central dot marks the place; rings pulse outward from it. */
+  const vp = showVoices ? voicePts : [];
+  globe.pointsData(vp);
+  globe.ringsData(vp);
 }
 
 /* Color ramp for shared wellbeing: cold deep blue (low)
@@ -221,7 +223,26 @@ async function init() {
      Each sense is independent. If one is slow or fails,
      the others live on. */
 
-  /* Voices render as pulsing rings (see refreshPoints); points stay empty. */
+  /* Central dot for each voice — gold (worse) or aqua (better) */
+  globe
+    .pointColor(d => d.direction === "better"
+      ? "rgba(63, 191, 168, 0.95)"
+      : "rgba(217, 164, 65, 0.95)")
+    .pointAltitude(0.012)
+    .pointRadius(d => Math.min(1.1, 0.22 + 0.12 * Math.sqrt(d.count || 1)))
+    .pointLabel(d => `
+      <div style="
+        font-family: Inter, sans-serif;
+        font-size: 12px;
+        color: #E8EDF2;
+        background: rgba(10,16,26,0.9);
+        border: 1px solid ${d.direction === "better"
+          ? "rgba(63,191,168,0.4)" : "rgba(217,164,65,0.4)"};
+        border-radius: 8px;
+        padding: 6px 10px;
+      ">${d.count} voice${d.count > 1 ? "s" : ""} · ${THEME_LABELS[d.theme] || d.theme}<br>
+        <span style="color:${d.direction === "better" ? "#3FBFA8" : "#D9A441"}">${d.direction === "better" ? "improving" : "concern"}</span></div>
+    `);
 
   /* The pulse of the planet is now human: voices ripple outward,
      gold where things worsen, aqua where they improve. */
