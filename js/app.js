@@ -635,8 +635,14 @@ function setupSpeak() {
       : "No place chosen — your voice will speak for the whole Earth.";
   };
 
+  const speakTextEl = document.getElementById("speak-text");
+  if (speakTextEl) speakTextEl.addEventListener("input", detectPlaceInText);
+
   document.getElementById("speak-open").addEventListener("click", () => {
     document.getElementById("speak-form").style.display = "";
+    const sb = document.getElementById("speak-place-suggest");
+    if (sb) sb.style.display = "none";
+    lastDetected = "";
     document.getElementById("speak-done").style.display = "none";
     document.getElementById("speak-error").style.display = "none";
     speakLocation = currentLocation || null;
@@ -649,6 +655,77 @@ function setupSpeak() {
     whereLine();
     modal.classList.add("open");
   });
+
+  /* (a) Detect a place mentioned in the text when none is chosen.
+     Matches against known country names + place names from voices,
+     then confirms the exact spot via Nominatim — no AI needed. */
+  let placeDetectTimer = null, lastDetected = "";
+  const suggestBox = document.getElementById("speak-place-suggest");
+
+  function knownPlaceNames() {
+    const names = new Set();
+    (countries || []).forEach(c => {
+      const n = c.properties && (c.properties.ADMIN || c.properties.NAME);
+      if (n) names.add(n.toLowerCase());
+    });
+    (GaiaData.voicePoints || []).forEach(p => {
+      if (p.place) names.add(p.place.split(",")[0].trim().toLowerCase());
+    });
+    return names;
+  }
+
+  function detectPlaceInText() {
+    if (speakLocation) { suggestBox.style.display = "none"; return; }
+    const ta = document.getElementById("speak-text");
+    const text = (ta.value || "").toLowerCase();
+    if (text.length < 6) { suggestBox.style.display = "none"; return; }
+
+    /* Find a capitalized place-like word in the ORIGINAL text */
+    const original = ta.value || "";
+    const candidates = (original.match(/\b[A-ZÀ-Ý][a-zà-ÿ]{2,}(?:\s[A-ZÀ-Ý][a-zà-ÿ]{2,})?/g) || []);
+    const known = knownPlaceNames();
+    let found = null;
+    /* Prefer a candidate that matches a known place name */
+    for (const c of candidates) {
+      if (known.has(c.toLowerCase())) { found = c; break; }
+    }
+    /* Otherwise take the first capitalized word that isn't the sentence start only */
+    if (!found && candidates.length) {
+      const stopWords = ["i","the","my","our","we","gaia"];
+      found = candidates.find(c => !stopWords.includes(c.toLowerCase())) || null;
+    }
+
+    if (!found || found.toLowerCase() === lastDetected) {
+      if (!found) suggestBox.style.display = "none";
+      return;
+    }
+    lastDetected = found.toLowerCase();
+
+    clearTimeout(placeDetectTimer);
+    placeDetectTimer = setTimeout(async () => {
+      try {
+        const url = "https://nominatim.openstreetmap.org/search?format=jsonv2" +
+          "&limit=1&addressdetails=1&accept-language=en&q=" + encodeURIComponent(found);
+        const res = await fetch(url);
+        const raw = await res.json();
+        if (!raw.length || speakLocation) { suggestBox.style.display = "none"; return; }
+        const r = raw[0];
+        const ad = r.address || {};
+        const region = ad.state || ad.region || ad.province || ad.county || "";
+        const full = (r.name || found) + (region ? ", " + region : "") + (ad.country ? ", " + ad.country : "");
+        suggestBox.innerHTML =
+          `You mentioned <b style="color:#E8EDF2">${found}</b>. Use this as your location?<br>` +
+          `<button id="accept-place" style="margin-top:8px;background:rgba(63,191,168,0.12);border:1px solid rgba(63,191,168,0.4);border-radius:999px;padding:5px 14px;color:#3FBFA8;font-family:inherit;font-size:12px;cursor:pointer">Use ${full.split(",")[0]}</button>`;
+        suggestBox.style.display = "block";
+        document.getElementById("accept-place").onclick = () => {
+          speakLocation = { name: full, lat: +r.lat, lng: +r.lon };
+          locInput.value = full;
+          whereLine();
+          suggestBox.style.display = "none";
+        };
+      } catch (e) { suggestBox.style.display = "none"; }
+    }, 700);
+  }
 
   /* Location search inside the form (Nominatim, debounced) */
   const locInput = document.getElementById("speak-loc");
