@@ -395,7 +395,8 @@ function openRegion(feature) {
   document.getElementById("region-panel").classList.add("open");
 
   globe.controls().autoRotate = false;
-  globe.pointOfView({ lat: c0.lat, lng: c0.lng, altitude: 1.6 }, 1100);
+  const regionAlt = window.matchMedia("(max-width: 720px)").matches ? 2.4 : 1.6;
+  globe.pointOfView({ lat: c0.lat, lng: c0.lng, altitude: regionAlt }, 1100);
 }
 
 function closeRegion() {
@@ -540,9 +541,11 @@ function openPlace(p) {
 
   /* How close the camera flies depends on the kind of place */
   const closeTypes = ["suburb", "neighbourhood", "quarter", "village", "hamlet"];
-  const altitude = closeTypes.includes(p.type) ? 0.18
+  let altitude = closeTypes.includes(p.type) ? 0.18
     : ["city", "town", "municipality"].includes(p.type) ? 0.35
     : 0.7;
+  /* On phones, never zoom so close the globe fills the screen */
+  if (window.matchMedia("(max-width: 720px)").matches) altitude = Math.max(altitude, 1.2);
 
   globe.controls().autoRotate = false;
   globe.pointOfView({ lat: p.lat, lng: p.lng, altitude }, 1400);

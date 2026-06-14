@@ -614,15 +614,25 @@ html, body {
 
   .region-panel {
     width: 100vw;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
     border-left: none;
     border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
     top: auto;
-    height: 62vh;
+    bottom: 0;
+    height: 82vh;
     transform: translateY(105%);
     transition: transform .45s cubic-bezier(.22,1,.3,1);
-    padding: 34px 24px;
+    padding: 30px 22px 40px;
     overflow-y: auto;
+    z-index: 30;            /* above the dock and synthesis so nothing bleeds through */
   }
+
+  /* Keep all panel text inside the screen — no horizontal overflow */
+  .region-panel * { max-width: 100%; box-sizing: border-box; }
+  .region-panel .region-status { word-wrap: break-word; }
 
   .region-panel.open { transform: translateY(0); }
 
@@ -855,7 +865,7 @@ html, body {
   #mobile-dock {
     display: block;
     position: fixed;
-    bottom: 92px;
+    bottom: 104px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 6;
