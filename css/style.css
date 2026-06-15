@@ -958,3 +958,47 @@ html, body {
 .dir-card[data-dir="better"].sel { border-color: #3FBFA8; background: rgba(63,191,168,0.08); }
 .dir-title { font-size: 13.5px; color: var(--text); }
 .dir-sub { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+
+/* ---------- Speak framing line (works at any scale) ---------- */
+.speak-framing {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+/* ---------- Direct Speak buttons (home screen) ---------- */
+.speak-direct {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.speak-dir-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 15px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .15s;
+}
+.speak-dir-btn:hover { transform: translateY(-1px); }
+.speak-dir-btn.better:hover { border-color: #3FBFA8; background: rgba(63,191,168,0.08); }
+.speak-dir-btn.worse:hover  { border-color: #D9A441; background: rgba(217,164,65,0.08); }
+.dir-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .speak-dir-btn { font-size: 15px; padding: 14px 16px; }
+}

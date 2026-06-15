@@ -673,7 +673,7 @@ function setupSpeak() {
   const speakTextEl = document.getElementById("speak-text");
   if (speakTextEl) speakTextEl.addEventListener("input", detectPlaceInText);
 
-  document.getElementById("speak-open").addEventListener("click", () => {
+  function openSpeak(preDir) {
     document.getElementById("speak-form").style.display = "";
     const sb = document.getElementById("speak-place-suggest");
     if (sb) sb.style.display = "none";
@@ -689,7 +689,29 @@ function setupSpeak() {
     document.getElementById("speak-loc").value = speakLocation ? speakLocation.name : "";
     whereLine();
     modal.classList.add("open");
+
+    /* If the visitor already chose a direction on the home screen,
+       preselect it, hide the redundant direction step, and reveal themes. */
+    const dirStep = document.getElementById("direction-step");
+    if (preDir === "better" || preDir === "worse") {
+      chosenDirection = preDir;
+      if (dirStep) dirStep.style.display = "none";
+      document.getElementById("speak-rest").style.display = "";
+      const promptEl = document.getElementById("speak-prompt");
+      if (promptEl) promptEl.textContent = pickQuestion(preDir);
+    } else {
+      if (dirStep) dirStep.style.display = "";
+    }
+  }
+
+  /* Home-screen direction buttons open Speak with the choice already made */
+  document.querySelectorAll(".speak-dir-btn").forEach(btn => {
+    btn.addEventListener("click", () => openSpeak(btn.dataset.dir));
   });
+
+  /* Fallback: a hidden/legacy speak-open trigger still works if present */
+  const legacyOpen = document.getElementById("speak-open");
+  if (legacyOpen) legacyOpen.addEventListener("click", () => openSpeak());
 
   /* (a) Detect a place mentioned in the text when none is chosen.
      Matches against known country names + place names from voices,
@@ -864,6 +886,8 @@ function setupSpeak() {
         const placeLine = speakLocation ? speakLocation.name.split(",")[0] : "worldwide";
 
         echo.innerHTML =
+          `<p style="font-family:Marcellus,serif;font-size:18px;color:#E8EDF2;margin-bottom:4px">Your voice was heard.</p>` +
+          `<p style="font-size:12.5px;color:#8B98A8;margin-bottom:14px;line-height:1.6">It doesn't disappear here — it becomes part of something larger.</p>` +
           `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">${head}</p>` +
           `<p style="font-family:Marcellus,serif;font-size:21px;color:${col}">${t.layer2}</p>` +
           `<div style="margin-top:12px;font-size:13px;color:#8B98A8;line-height:1.9">` +

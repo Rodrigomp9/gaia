@@ -60,10 +60,17 @@
     </svg>
     <div class="wordmark">GA<span>I</span>A</div>
   </div>
-  <p class="mission">What is humanity noticing right now?</p>
-  <p class="cando">Anonymous voices become emerging patterns.<br>Not a social network — a collective mirror. Help humanity see itself.</p>
+  <p class="mission">What are you noticing?</p>
+  <p class="cando">Share what is getting better or worse where you live.<br>Anonymous · Most observations disappear — here, yours helps reveal a pattern.</p>
 
-  <button id="speak-open" class="speak-btn">🜨 Speak to Gaia</button>
+  <div class="speak-direct">
+    <button class="speak-dir-btn better" data-dir="better">
+      <span class="dir-dot" style="background:#3FBFA8"></span> Something is improving
+    </button>
+    <button class="speak-dir-btn worse" data-dir="worse">
+      <span class="dir-dot" style="background:#D9A441"></span> Something is getting worse
+    </button>
+  </div>
 
   <div class="search-wrap">
     <span class="icon">⌕</span>
@@ -144,7 +151,7 @@
 
 <!-- Today's Insight -->
 <div id="daily" class="daily">
-  <div class="daily-label"><span class="syn-dot"></span> Today's insight</div>
+  <div class="daily-label"><span class="syn-dot"></span> What people are noticing</div>
   <p id="daily-text"></p>
   <button id="daily-share" class="share-btn">Share this insight</button>
 </div>
@@ -167,11 +174,13 @@
       <circle cx="60" cy="16" r="5" fill="#D9A441"/>
     </svg>
     <h2>GAIA</h2>
-    <p class="about-tag">A digital collective consciousness</p>
+    <p class="about-tag">A collective observatory of human experience</p>
     <p class="about-quote">"Reveal what unites us, invisible beneath the noise of the world."</p>
     <p style="color:#3FBFA8;font-size:14.5px">A collective observatory of human experience.</p>
     <p>GAIA listens to anonymous human voices, observes the world through real, open data, and reveals the patterns that emerge when many people speak together.</p>
     <p>GAIA does not focus on individuals. It focuses on what humanity is experiencing, feeling, and becoming.</p>
+    <p class="about-sub" style="margin-top:24px">Why Gaia exists</p>
+    <p style="font-size:13px;color:#8B98A8;line-height:1.8">People notice change every day — a rising cost of living, a safer neighborhood, new opportunities, growing concerns. Most of these observations disappear, unheard. Gaia exists to listen — so that a single quiet observation can become part of a pattern no one could see alone.</p>
     <p class="about-sub" style="margin-top:24px">What Gaia can reveal</p>
     <p style="font-size:13px;color:#8B98A8;line-height:1.7">As voices gather, Gaia begins to surface things no single person can see: where cost-of-living pressure is rising before it reaches official statistics · what people mention when safety improves · which regions are gaining or losing confidence in the future · what concerns are spreading quietly across distant places · and what seems to be working where people report things getting better.</p>
     <p style="font-size:12.5px;color:#56616F;font-style:italic;margin-top:18px">A note on honesty: GAIA measures the voices that choose to participate, not humanity itself. Every signal carries a confidence level based on how many people spoke and how widely across the world.</p>
@@ -192,6 +201,7 @@
     <p style="font-size:13.5px">What are you experiencing where you live? Your voice is anonymous — Gaia never shows individual messages, only the patterns that emerge when many speak.</p>
 
     <div id="speak-form">
+      <div id="direction-step">
       <p class="about-sub">What are you noticing?</p>
       <p style="font-size:12.5px;color:#8B98A8;margin:-4px 0 14px;line-height:1.55">Your observation may help reveal patterns that no single person can see.</p>
       <div id="direction-choice" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
@@ -203,6 +213,7 @@
           <span class="dir-title">Something is improving</span>
           <span class="dir-sub">What is improving, helping, or giving hope?</span>
         </button>
+      </div>
       </div>
 
       <div id="speak-rest" style="display:none">
