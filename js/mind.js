@@ -292,11 +292,15 @@ const GaiaMind = {
     ).size;
 
     const concerns = GaiaData.voiceConcerns || {};
+    const worseBy = (GaiaData.voiceWorse && GaiaData.voiceWorse.byTheme) || {};
+    const betterBy = (GaiaData.voiceBetter && GaiaData.voiceBetter.byTheme) || {};
     return this.voiceThemes.map(t => ({
       key: t.key,
       label: t.label,
       layer2: t.layer2,
       voices: byTheme[t.key] || 0,
+      worse: worseBy[t.key] || 0,
+      better: betterBy[t.key] || 0,
       regions: regionsOf(t.key),
       growingIn: placesOf(t.key),
       concerns: concerns[t.key] || [],

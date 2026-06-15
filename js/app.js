@@ -376,6 +376,7 @@ function openRegion(feature) {
   const name = feature.properties.ADMIN;
   const iso = feature.properties.ISO_A3;
 
+  globe.labelsData([]);   /* clear any place marker from a previous search */
   selectedIso = iso;
   globe.hexPolygonColor(hexColor);
 
@@ -1017,13 +1018,18 @@ function renderHumanityPulse() {
         else             { label = "Strong signal";  col = "#3FBFA8"; }
         return `<div style="font-size:12px;color:${col};margin-top:6px">${label}</div>`;
       })()}
+      ${(t.worse || t.better) ? `<div style="font-size:12px;margin-top:6px">
+        <span style="color:#D9A441">${t.worse} getting worse</span>
+        <span style="color:#56616F"> · </span>
+        <span style="color:#3FBFA8">${t.better} improving</span>
+      </div>` : ""}
       ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
       ${(t.voices >= 10 && t.concerns && t.concerns.length) ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
         <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
-          ${hasResonated(t.key) ? "You feel the same ✓" : "I feel the same"}
+          ${hasResonated(t.key) ? "You feel this too ✓" : "I feel this too"}
         </button>
-        <span style="font-size:11.5px;color:#56616F">${t.resonance ? t.resonance + " feel the same" : ""}</span>
+        <span style="font-size:11.5px;color:#56616F">${t.resonance ? t.resonance + " feel this" : ""}</span>
       </div>
     </div>
   `).join("");
@@ -1032,7 +1038,7 @@ function renderHumanityPulse() {
     btn.addEventListener("click", async () => {
       const theme = btn.dataset.theme;
       btn.disabled = true;
-      btn.textContent = "You feel the same ✓";
+      btn.textContent = "You feel this too ✓";
       rememberResonance(theme);
       try {
         await GaiaMind.resonate(theme,
