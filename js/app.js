@@ -35,7 +35,7 @@ function refreshPoints() {
   /* Voices ARE the planet's pulse now — each one a ripple of human
      experience. Gold = something getting worse, aqua = getting better.
      A central dot marks the place; rings pulse outward from it. */
-  const vp = showVoices ? voicePts : [];
+  const vp = showVoices ? voicePts.slice() : [];
   globe.pointsData(vp);
   globe.ringsData(vp);
 }
@@ -415,6 +415,8 @@ function closeRegion() {
   document.getElementById("region-panel").classList.remove("open");
   selectedIso = null;
   globe.hexPolygonColor(hexColor);
+  globe.labelsData([]);   /* remove the gold place marker */
+  currentLocation = null;
   globe.controls().autoRotate = true;
 }
 
