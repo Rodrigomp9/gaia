@@ -327,12 +327,24 @@ function startSynthesis(lines) {
 /* ---------- Global pulse (left panel) ---------- */
 
 function fillPulse() {
-  document.getElementById("pulse-planet").textContent =
-    (GaiaData.voicePoints ? GaiaData.voicePoints.length : 0);
-  document.getElementById("pulse-human").textContent =
-    GaiaData.globalPulse.humanSignals;
+  /* Voices heard */
   document.getElementById("pulse-voices").textContent =
     GaiaData.globalPulse.voices;
+
+  /* Signals forming — Layer-2 signals that have any voices gathering */
+  let forming = 0;
+  try {
+    const worse = GaiaMind.emergingSignals().filter(s => s.voices > 0).length;
+    const better = GaiaMind.improvementSignals().filter(s => s.voices > 0).length;
+    forming = worse + better;
+  } catch (e) { forming = 0; }
+  document.getElementById("pulse-planet").textContent = forming;
+
+  /* Regions represented — distinct coarse regions across all voices */
+  const regions = new Set(
+    (GaiaData.voicePoints || []).map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+  ).size;
+  document.getElementById("pulse-human").textContent = regions;
 }
 
 /* ---------- Narrative panel — Gaia's understanding ---------- */
@@ -627,6 +639,8 @@ function setupSpeak() {
         [...dirCards.children].forEach(c => c.classList.remove("sel"));
         card.classList.add("sel");
         document.getElementById("speak-rest").style.display = "";
+        const promptEl = document.getElementById("speak-prompt");
+        if (promptEl) promptEl.textContent = pickQuestion(chosenDirection);
       });
     });
   }
@@ -933,8 +947,8 @@ function renderHumanityPulse() {
     const heardLine = (typeof heard === "number" && heard > 0)
       ? `${heard} voice${heard === 1 ? "" : "s"} heard so far. ` : "";
     const body = isImprove
-      ? `Gaia is listening. ${heardLine}The first improvement signals appear when people share what is getting better across regions.`
-      : `Gaia is listening. ${heardLine}A collective signal will be named when enough voices gather across regions.`;
+      ? `Gaia is still listening. ${heardLine}Early observations suggest something may be forming — more voices are needed before patterns become clear.`
+      : `Gaia is still listening. ${heardLine}A possible signal is beginning to emerge — more voices are needed before patterns become clear.`;
     return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
       `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">${body}</p>`;
   };
@@ -1131,6 +1145,28 @@ function setupExplore() {
   open.addEventListener("click", () => { exploreTheme = null; renderExplore(); modal.classList.add("open"); });
   document.getElementById("explore-close").addEventListener("click", () => modal.classList.remove("open"));
   modal.addEventListener("click", e => { if (e.target === e.currentTarget) modal.classList.remove("open"); });
+}
+
+/* Rotating human questions — spark contributions, reduce blank-page block */
+const HUMAN_QUESTIONS = {
+  worse: [
+    "What is becoming harder where you live?",
+    "What worries people most this month?",
+    "What feels different compared to last year?",
+    "What change has been weighing on your community?",
+    "What is quietly getting worse that few talk about?"
+  ],
+  better: [
+    "What is improving where you live that nobody talks about?",
+    "What gives people hope in your region?",
+    "What change surprised you recently — for the better?",
+    "What seems to be working where you live?",
+    "What small thing has been getting better lately?"
+  ]
+};
+function pickQuestion(dir) {
+  const arr = HUMAN_QUESTIONS[dir] || HUMAN_QUESTIONS.worse;
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /* ---------- Your Contributions (local, no login) ---------- */

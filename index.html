@@ -27,8 +27,8 @@
     <circle cx="60" cy="16" r="3.2" fill="#D9A441"/>
   </svg>
   <div class="intro-wordmark">GAIA</div>
-  <p class="intro-mission">Reveal what unites us,<br>invisible beneath the noise of the world.</p>
-  <p class="intro-explain">Discover what people around the world are experiencing.<br>Anonymous voices · Real data · Emerging patterns</p>
+  <p class="intro-mission">What is humanity<br>noticing right now?</p>
+  <p class="intro-explain">Anonymous voices from around the world become emerging patterns.<br>Not a social network — a collective mirror.</p>
   <p class="intro-hint">click anywhere to enter</p>
 </div>
 
@@ -60,8 +60,8 @@
     </svg>
     <div class="wordmark">GA<span>I</span>A</div>
   </div>
-  <p class="mission">Reveal what unites us, invisible beneath the noise of the world.</p>
-  <p class="cando">A collective observatory of human experience.<br>Listen to the world &middot; Add your voice, anonymously</p>
+  <p class="mission">What is humanity noticing right now?</p>
+  <p class="cando">Anonymous voices become emerging patterns.<br>Not a social network — a collective mirror. Help humanity see itself.</p>
 
   <button id="speak-open" class="speak-btn">🜨 Speak to Gaia</button>
 
@@ -72,19 +72,19 @@
   </div>
 
   <div class="pulse">
-    <div class="pulse-label"><span class="pulse-dot"></span> Global pulse</div>
+    <div class="pulse-label"><span class="pulse-dot"></span> Building humanity's collective mirror</div>
     <div class="pulse-grid">
       <div class="pulse-card">
-        <div class="num" id="pulse-planet">—</div>
-        <div class="cap">Voices pulsing</div>
+        <div class="num" id="pulse-voices">—</div>
+        <div class="cap">Voices heard</div>
       </div>
       <div class="pulse-card">
-        <div class="num" id="pulse-human">—</div>
-        <div class="cap">Countries heard</div>
+        <div class="num" id="pulse-planet">—</div>
+        <div class="cap">Signals forming</div>
       </div>
       <div class="pulse-card" style="grid-column:1/-1">
-        <div class="num" id="pulse-voices">—</div>
-        <div class="cap">Voices spoken to Gaia</div>
+        <div class="num" id="pulse-human">—</div>
+        <div class="cap">Regions represented</div>
       </div>
     </div>
     <div class="legend">
@@ -172,7 +172,9 @@
     <p style="color:#3FBFA8;font-size:14.5px">A collective observatory of human experience.</p>
     <p>GAIA listens to anonymous human voices, observes the world through real, open data, and reveals the patterns that emerge when many people speak together.</p>
     <p>GAIA does not focus on individuals. It focuses on what humanity is experiencing, feeling, and becoming.</p>
-    <p style="font-size:12.5px;color:#56616F;font-style:italic">A note on honesty: GAIA measures the voices that choose to participate, not humanity itself. Every signal carries a confidence level based on how many people spoke and how widely across the world.</p>
+    <p class="about-sub" style="margin-top:24px">What Gaia can reveal</p>
+    <p style="font-size:13px;color:#8B98A8;line-height:1.7">As voices gather, Gaia begins to surface things no single person can see: where cost-of-living pressure is rising before it reaches official statistics · what people mention when safety improves · which regions are gaining or losing confidence in the future · what concerns are spreading quietly across distant places · and what seems to be working where people report things getting better.</p>
+    <p style="font-size:12.5px;color:#56616F;font-style:italic;margin-top:18px">A note on honesty: GAIA measures the voices that choose to participate, not humanity itself. Every signal carries a confidence level based on how many people spoke and how widely across the world.</p>
     <p class="about-sub">Her senses today</p>
     <p><span class="g">The human pulse</span> — anonymous voices rippling across the globe, gold where something is getting worse, aqua where something is improving. <span class="a">Humanity's state</span> — education, health, safety and environment across ~190 nations (World Bank). <span class="a">Every place on Earth</span> — search by city, neighborhood or village (OpenStreetMap).</p>
     <p class="about-sub">Her principles</p>
@@ -190,14 +192,15 @@
     <p style="font-size:13.5px">What are you experiencing where you live? Your voice is anonymous — Gaia never shows individual messages, only the patterns that emerge when many speak.</p>
 
     <div id="speak-form">
-      <p class="about-sub">What do you want Gaia to hear?</p>
+      <p class="about-sub">What are you noticing?</p>
+      <p style="font-size:12.5px;color:#8B98A8;margin:-4px 0 14px;line-height:1.55">Your observation may help reveal patterns that no single person can see.</p>
       <div id="direction-choice" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
         <button class="dir-card" data-dir="worse">
-          <span class="dir-title">Something getting worse</span>
+          <span class="dir-title">Something is getting worse</span>
           <span class="dir-sub">What is becoming harder, heavier, or more concerning?</span>
         </button>
         <button class="dir-card" data-dir="better">
-          <span class="dir-title">Something getting better</span>
+          <span class="dir-title">Something is improving</span>
           <span class="dir-sub">What is improving, helping, or giving hope?</span>
         </button>
       </div>
@@ -207,7 +210,8 @@
       <div class="theme-chips" id="theme-chips"></div>
 
       <p class="about-sub">Your voice <span style="text-transform:none;letter-spacing:0">(max 500)</span></p>
-      <textarea id="speak-text" maxlength="500" rows="3" placeholder="What challenge affects your community? What should improve where you live?"></textarea>
+      <p id="speak-prompt" style="font-size:13px;color:#C9B8F0;margin-bottom:8px;line-height:1.5"></p>
+      <textarea id="speak-text" maxlength="500" rows="3" placeholder="Share what you're noticing where you live..."></textarea>
 
       <p class="about-sub">Where does your voice belong? <span style="text-transform:none;letter-spacing:0">(optional)</span></p>
       <div class="search-wrap" style="margin-top:6px">
