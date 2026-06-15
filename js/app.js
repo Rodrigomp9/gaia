@@ -168,6 +168,7 @@ function setupCountryPointer() {
     const c = globe.toGlobeCoords(e.clientX - r.left, e.clientY - r.top);
     const f = c ? countryAt(c.lat, c.lng) : null;
     if (f) openRegion(f);
+    else { globe.labelsData([]); }   /* clicked empty area — clear any place marker */
   });
 }
 
@@ -1025,32 +1026,8 @@ function renderHumanityPulse() {
       </div>` : ""}
       ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
       ${(t.voices >= 10 && t.concerns && t.concerns.length) ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-        <button class="reso-btn" data-theme="${t.key}" ${hasResonated(t.key) ? "disabled" : ""}>
-          ${hasResonated(t.key) ? "You feel this too ✓" : "I feel this too"}
-        </button>
-        <span style="font-size:11.5px;color:#56616F">${t.resonance ? t.resonance + " feel this" : ""}</span>
-      </div>
     </div>
   `).join("");
-
-  body.querySelectorAll(".reso-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const theme = btn.dataset.theme;
-      btn.disabled = true;
-      btn.textContent = "You feel this too ✓";
-      rememberResonance(theme);
-      try {
-        await GaiaMind.resonate(theme,
-          currentLocation ? currentLocation.lat : null,
-          currentLocation ? currentLocation.lng : null);
-        await GaiaMind.listenResonance();
-        renderHumanityPulse();
-      } catch (e) {
-        /* Local preview: the gesture is kept, the count waits for Gaia online */
-      }
-    });
-  });
 
   foot.textContent = totalVoices > 0
     ? `Gaia has heard ${totalVoices} voice${totalVoices === 1 ? "" : "s"} so far. Patterns emerge when many speak — collective questions are never rushed.`
