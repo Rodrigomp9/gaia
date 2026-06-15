@@ -757,6 +757,10 @@ html, body {
   color: var(--text-faint);
   opacity: 0;
   animation: rise 1.8s ease forwards 2.8s;
+  text-align: center;
+  max-width: 420px;
+  padding: 0 24px;
+  line-height: 1.7;
 }
 
 .cando {
