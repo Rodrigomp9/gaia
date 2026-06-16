@@ -138,7 +138,13 @@ module.exports = async (req, res) => {
 
     const now = Date.now();
     const WEEK = 7 * 86400000;
-    const STOP = new Set(("the a an and or but of to in on at for with from is are was were be been being i my we our you your it its this that these those they them their he she his her not no yes do does did have has had will would can could should about more most very just so if than then there here what when where who how why as also out up down over under into".split(" ")));
+    /* Stopwords across the languages people are most likely to use
+       (English, Portuguese, Spanish). Keeps only meaningful words. */
+    const STOP = new Set((
+      /* EN */ "the a an and or but of to in on at for with from is are was were be been being i my we our you your it its this that these those they them their he she his her not no yes do does did have has had will would can could should about more most very just so if than then there here what when where who how why as also out up down over under into been being having only also even still much many lot lots get got make made " +
+      /* PT */ "o a os as um uma uns umas de do da dos das em no na nos nas para por com sem que se já não sim muito muita muitos muitas mais menos est está estão estou esta este esta isso isto aqui ali aí ele ela eles elas eu meu minha nosso nossa seu sua tem têm ter foi era são pelo pela como quando onde porque qual quais mas e ou também ainda cada vez ano anos dia dias " +
+      /* ES */ "el la los las un una unos unas de del en para por con sin que si ya no sí muy mucho mucha muchos muchas más menos está están estoy este esta esto aquí ahí él ella ellos ellas yo mi nuestro su tiene tienen tener fue era son como cuando donde porque cual cuales pero y o también aún cada vez año años día días"
+    ).split(/\s+/).filter(Boolean));
 
     /* Two axes: deterioration (worse) and improvement (better) */
     const mk = () => ({ byTheme: {}, words: {} });

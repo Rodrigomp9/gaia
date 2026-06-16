@@ -1,259 +1,1291 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>GAIA — A digital collective consciousness</title>
-<meta name="description" content="Reveal what unites us, invisible beneath the noise of the world.">
-<meta name="theme-color" content="#070B12">
-<meta property="og:title" content="GAIA — A digital collective consciousness">
-<meta property="og:description" content="Reveal what unites us, invisible beneath the noise of the world.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23070B12'/%3E%3Cg fill='none' stroke='%233FBFA8' stroke-width='5'%3E%3Ccircle cx='60' cy='60' r='42' opacity='0.4'/%3E%3Cellipse cx='60' cy='60' rx='42' ry='16' opacity='0.7'/%3E%3Cellipse cx='60' cy='60' rx='16' ry='42' opacity='0.7'/%3E%3C/g%3E%3Ccircle cx='60' cy='18' r='8' fill='%23D9A441'/%3E%3C/svg%3E">
+/* ============================================================
+   GAIA — LOGIC LAYER
+   ------------------------------------------------------------
+   Renders the globe, handles search and interaction.
+   Reads data ONLY from GaiaData (js/data.js), fed by the
+   mind (js/mind.js).
+   ============================================================ */
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+const COUNTRIES_URL =
+  "https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson";
 
-<!-- Intro — the mission before the world -->
-<div id="intro">
-  <svg class="intro-mark" viewBox="0 0 120 120" aria-hidden="true">
-    <g fill="none" stroke="#3FBFA8" stroke-width="1.2">
-      <circle cx="60" cy="60" r="44" opacity="0.35"/>
-      <ellipse cx="60" cy="60" rx="44" ry="17" opacity="0.55"/>
-      <ellipse cx="60" cy="60" rx="17" ry="44" opacity="0.55"/>
-    </g>
-    <circle cx="60" cy="16" r="3.2" fill="#D9A441"/>
-  </svg>
-  <div class="intro-wordmark">GAIA</div>
-  <p class="intro-mission">What is humanity<br>noticing right now?</p>
-  <p class="intro-explain">Anonymous voices from around the world become emerging patterns.<br>Not a social network — a collective mirror.</p>
-  <p class="intro-hint">click anywhere to enter</p>
-</div>
+let countries = [];
+let globe;
+let selectedIso = null;
+let hoverCountry = null;
+let humanityLive = false;
+let planetPts = [];
+let planetRings = [];
+let voicePts = [];
+let currentLocation = null;
+let showPlanet = true;
+let showVoices = true;
+let showWell = true;
 
-<!-- The globe — Gaia's body -->
-<div id="globe-container"></div>
-<div id="vignette"></div>
+const THEME_LABELS = {
+  cost: "Cost of Living",
+  safety: "Safety",
+  health: "Health",
+  work: "Work & Opportunity",
+  education: "Education",
+  environment: "Environment"
+};
 
-<!-- Mobile dock: opens pulse + layers on small screens -->
-<button id="mobile-dock" aria-label="Open pulse and layers">◷ Pulse &amp; Layers</button>
+function refreshPoints() {
+  /* Voices ARE the planet's pulse now — each one a ripple of human
+     experience. Gold = something getting worse, aqua = getting better.
+     A central dot marks the place; rings pulse outward from it. */
+  const vp = showVoices ? voicePts.slice() : [];
+  globe.pointsData(vp);
+  globe.ringsData(vp);
+}
 
-<!-- Mobile sheet -->
-<div id="mobile-sheet">
-  <div class="mobile-sheet-inner">
-    <button id="mobile-sheet-close" class="region-close" aria-label="Close">&times;</button>
-    <div id="mobile-sheet-body"></div>
-  </div>
-</div>
+/* Color ramp for shared wellbeing: cold deep blue (low)
+   → vivid aqua (mid) → luminous mint (high).
+   Selected country glows gold. */
+const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+const rampColor = s => {
+  /* stops: low #29586E → mid #3FBFA8 → high #8FF0CF */
+  let r, g, b;
+  if (s < 0.5) {
+    const t = s / 0.5;
+    r = lerp(0x29, 0x3F, t); g = lerp(0x58, 0xBF, t); b = lerp(0x6E, 0xA8, t);
+  } else {
+    const t = (s - 0.5) / 0.5;
+    r = lerp(0x3F, 0x8F, t); g = lerp(0xBF, 0xF0, t); b = lerp(0xA8, 0xCF, t);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${(0.55 + 0.4 * s).toFixed(2)})`;
+};
 
-<!-- Left panel — identity, search, pulse -->
-<aside class="panel">
-  <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 120 120" aria-hidden="true">
-      <g fill="none" stroke="#3FBFA8" stroke-width="3">
-        <circle cx="60" cy="60" r="44" opacity="0.35"/>
-        <ellipse cx="60" cy="60" rx="44" ry="17" opacity="0.6"/>
-        <ellipse cx="60" cy="60" rx="17" ry="44" opacity="0.6"/>
-      </g>
-      <circle cx="60" cy="16" r="6" fill="#D9A441"/>
-    </svg>
-    <div class="wordmark">GA<span>I</span>A</div>
-  </div>
-  <p class="mission">What is humanity noticing right now?</p>
-  <p class="cando">Anonymous voices become emerging patterns.<br>Not a social network — a collective mirror. Help humanity see itself.</p>
+const hexColor = d => {
+  if (d.properties.ISO_A3 === selectedIso) return "rgba(217, 164, 65, 0.95)";
+  if (hoverCountry && d === hoverCountry) return "rgba(217, 164, 65, 0.9)";
+  if (humanityLive && showWell) {
+    const e = GaiaMind.indexFor(d);
+    if (e && e.score != null) return rampColor(e.score);
+    return "rgba(63, 191, 168, 0.22)";
+  }
+  return "rgba(63, 191, 168, 0.65)";
+};
 
-  <p class="speak-framing">Most observations disappear into the noise.<br>Here, yours becomes part of something larger.</p>
-  <button id="speak-open" class="speak-btn">🜨 Speak to Gaia</button>
-  <p class="speak-subnote">Tell her what's getting better or worse where you live.</p>
+/* ---------- Unified hover (dots + invisible territory) ----------
+   Two sensors feed one state: the dots (when the cursor is on
+   one) and the invisible country shapes (when it's between
+   dots). A short damper ignores the null blips in between. */
 
-  <div class="search-wrap">
-    <span class="icon">⌕</span>
-    <input id="search" type="text" placeholder="Find a place in the world..." autocomplete="off">
-    <div id="search-results" class="search-results"></div>
-  </div>
+/* ---------- Country under the cursor (pure math) ----------
+   Screen position -> lat/lng -> point-in-polygon test.
+   No 3D sensors, no gaps between dots, no flicker. */
 
-  <div class="pulse">
-    <div class="pulse-label"><span class="pulse-dot"></span> Building humanity's collective mirror</div>
-    <div class="pulse-grid">
-      <div class="pulse-card">
-        <div class="num" id="pulse-voices">—</div>
-        <div class="cap">Voices heard</div>
+function bboxOf(f) {
+  let minLng = 999, minLat = 999, maxLng = -999, maxLat = -999;
+  const g = f.geometry;
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+  polys.forEach(p => p[0].forEach(pt => {
+    if (pt[0] < minLng) minLng = pt[0];
+    if (pt[0] > maxLng) maxLng = pt[0];
+    if (pt[1] < minLat) minLat = pt[1];
+    if (pt[1] > maxLat) maxLat = pt[1];
+  }));
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+function pointInRing(lat, lng, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) &&
+        (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+function countryAt(lat, lng) {
+  for (const c of countries) {
+    const b = c.__bbox || (c.__bbox = bboxOf(c));
+    if (lng < b[0] || lat < b[1] || lng > b[2] || lat > b[3]) continue;
+    const g = c.geometry;
+    const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+    for (const p of polys) {
+      if (pointInRing(lat, lng, p[0])) return c;
+    }
+  }
+  return null;
+}
+
+function setupCountryPointer() {
+  const el = document.getElementById("globe-container");
+  let raf = null, lastEvt = null;
+
+  /* Our own tooltip — follows the math, not the dots */
+  const tip = document.createElement("div");
+  tip.id = "country-tip";
+  document.body.appendChild(tip);
+
+  const updateTip = (f, x, y) => {
+    if (!f) { tip.style.display = "none"; return; }
+    const e = humanityLive ? GaiaMind.indexFor(f) : null;
+    tip.innerHTML = `<b>${f.properties.ADMIN}</b>` +
+      (e && e.score != null
+        ? `<br><span style="color:#3FBFA8">Shared wellbeing: ${Math.round(e.score * 100)}%</span>`
+        : "");
+    tip.style.display = "block";
+    const pad = 16;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let tx = x + pad, ty = y + pad;
+    if (tx + tw > window.innerWidth - 8) tx = x - tw - pad;
+    if (ty + th > window.innerHeight - 8) ty = y - th - pad;
+    tip.style.left = tx + "px";
+    tip.style.top = ty + "px";
+  };
+
+  el.addEventListener("mousemove", e => {
+    lastEvt = e;
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = null;
+      const r = el.getBoundingClientRect();
+      const c = globe.toGlobeCoords(lastEvt.clientX - r.left, lastEvt.clientY - r.top);
+      const f = c ? countryAt(c.lat, c.lng) : null;
+      if (f !== hoverCountry) {
+        hoverCountry = f;
+        globe.hexPolygonColor(hexColor);
+        el.style.cursor = f ? "pointer" : "";
+      }
+      updateTip(f, lastEvt.clientX, lastEvt.clientY);
+    });
+  });
+
+  el.addEventListener("mouseleave", () => updateTip(null, 0, 0));
+
+  /* Click anywhere inside a country opens it (drag = rotate, not click) */
+  let downX = 0, downY = 0;
+  el.addEventListener("mousedown", e => { downX = e.clientX; downY = e.clientY; });
+  el.addEventListener("click", e => {
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+    const r = el.getBoundingClientRect();
+    const c = globe.toGlobeCoords(e.clientX - r.left, e.clientY - r.top);
+    const f = c ? countryAt(c.lat, c.lng) : null;
+    if (f) openRegion(f);
+    else { globe.labelsData([]); }   /* clicked empty area — clear any place marker */
+  });
+}
+
+/* ---------- Intro ---------- */
+
+function setupIntro() {
+  const intro = document.getElementById("intro");
+  const dismiss = () => {
+    intro.classList.add("fade");
+    if (globe) {
+      globe.pointOfView({ lat: 10, lng: -30, altitude:
+    window.matchMedia("(max-width: 720px)").matches ? 2.9 : 3.6 }, 0);
+      globe.pointOfView({ lat: 10, lng: -30, altitude: 2.2 }, 2400);
+    }
+    setTimeout(() => intro.remove(), 1500);
+  };
+  intro.addEventListener("click", dismiss);
+  setTimeout(() => { if (document.getElementById("intro")) dismiss(); }, 9000);
+}
+
+/* ---------- Boot ---------- */
+
+async function init() {
+  const res = await fetch(COUNTRIES_URL);
+  const geo = await res.json();
+  countries = geo.features;
+
+  globe = Globe()(document.getElementById("globe-container"))
+    .backgroundColor("#070B12")
+    .showAtmosphere(true)
+    .atmosphereColor("#3FBFA8")
+    .atmosphereAltitude(0.18)
+    .hexPolygonsData(countries)
+    .hexPolygonResolution(3)
+    .hexPolygonMargin(0.55)
+    .hexPolygonUseDots(true)
+    .hexPolygonColor(hexColor)
+
+;
+
+  /* Size the globe to its container on phones (contained), window on desktop */
+  function sizeGlobe() {
+    const mobile = window.matchMedia("(max-width: 720px)").matches;
+    const el = document.getElementById("globe-container");
+    if (mobile && el) {
+      const r = el.getBoundingClientRect();
+      globe.width(r.width).height(r.height);
+      globe.pointOfView({ altitude: 2.9 });
+    } else {
+      globe.width(window.innerWidth).height(window.innerHeight);
+    }
+  }
+
+  const controls = globe.controls();
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.35;
+  controls.enableDamping = true;
+
+  globe.pointOfView({ lat: 10, lng: -30, altitude:
+    window.matchMedia("(max-width: 720px)").matches ? 2.9 : 3.6 }, 0);
+
+  setupIntro();
+  setupCountryPointer();
+  fillPulse();
+  setupSearch();
+
+  /* ---- Phase 3: Gaia begins to feel ----
+     Each sense is independent. If one is slow or fails,
+     the others live on. */
+
+  /* Central dot for each voice — gold (worse) or aqua (better) */
+  globe
+    .pointColor(d => d.direction === "better"
+      ? "rgba(63, 191, 168, 0.95)"
+      : "rgba(217, 164, 65, 0.95)")
+    .pointAltitude(0.012)
+    .pointRadius(d => Math.min(1.1, 0.22 + 0.12 * Math.sqrt(d.count || 1)))
+    .pointLabel(d => `
+      <div style="
+        font-family: Inter, sans-serif;
+        font-size: 12px;
+        color: #E8EDF2;
+        background: rgba(10,16,26,0.9);
+        border: 1px solid ${d.direction === "better"
+          ? "rgba(63,191,168,0.4)" : "rgba(217,164,65,0.4)"};
+        border-radius: 8px;
+        padding: 6px 10px;
+      ">${d.count} voice${d.count > 1 ? "s" : ""} · ${THEME_LABELS[d.theme] || d.theme}<br>
+        <span style="color:${d.direction === "better" ? "#3FBFA8" : "#D9A441"}">${d.direction === "better" ? "improving" : "concern"}</span></div>
+    `);
+
+  /* The pulse of the planet is now human: voices ripple outward,
+     gold where things worsen, aqua where they improve. */
+  globe
+    .ringColor(d => {
+      const better = d.direction === "better";
+      return t => better
+        ? `rgba(63, 191, 168, ${Math.max(0, 0.7 - t)})`
+        : `rgba(217, 164, 65, ${Math.max(0, 0.7 - t)})`;
+    })
+    .ringMaxRadius(d => Math.max(1.4, Math.min(5, 1.2 + (d.count || 1) * 0.5)))
+    .ringPropagationSpeed(1.3)
+    .ringRepeatPeriod(2400);
+
+  /* Resonance counts */
+  GaiaMind.listenResonance();
+
+  /* Voices — the planet's human pulse */
+  GaiaMind.listenVoices().then(v => {
+    voicePts = v;
+    refreshPoints();
+    fillPulse();
+  });
+
+  /* Sense 2 — humanity's state, lights the countries up */
+  GaiaMind.listenHumanity().then(idx => {
+    if (idx && Object.keys(idx).length) {
+      humanityLive = true;
+      countries.forEach(c => { delete c.__gaiaEntry; });
+      globe.hexPolygonColor(hexColor);
+      startSynthesis(GaiaMind.synthesize());
+      const di = GaiaMind.dailyInsight();
+      if (di) {
+        document.getElementById("daily-text").textContent = di;
+        document.getElementById("daily").classList.add("alive");
+      }
+    }
+    fillPulse();
+  });
+
+  sizeGlobe();
+  window.addEventListener("resize", sizeGlobe);
+}
+
+/* ---------- Synthesis — Gaia speaks ---------- */
+
+function startSynthesis(lines) {
+  if (!lines.length) return;
+  const box = document.getElementById("synthesis");
+  const text = document.getElementById("syn-text");
+  let i = 0;
+
+  const show = () => {
+    text.classList.remove("visible");
+    setTimeout(() => {
+      text.textContent = lines[i % lines.length];
+      text.classList.add("visible");
+      i++;
+    }, 700);
+  };
+
+  box.classList.add("alive");
+  show();
+  setInterval(show, 10000);
+}
+
+/* ---------- Global pulse (left panel) ---------- */
+
+function fillPulse() {
+  /* Voices heard */
+  document.getElementById("pulse-voices").textContent =
+    GaiaData.globalPulse.voices;
+
+  /* Signals forming — Layer-2 signals that have any voices gathering */
+  let forming = 0;
+  try {
+    const worse = GaiaMind.emergingSignals().filter(s => s.voices > 0).length;
+    const better = GaiaMind.improvementSignals().filter(s => s.voices > 0).length;
+    forming = worse + better;
+  } catch (e) { forming = 0; }
+  document.getElementById("pulse-planet").textContent = forming;
+
+  /* Regions represented — distinct coarse regions across all voices */
+  const regions = new Set(
+    (GaiaData.voicePoints || []).map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+  ).size;
+  document.getElementById("pulse-human").textContent = regions;
+}
+
+/* ---------- Narrative panel — Gaia's understanding ---------- */
+
+function narrativeHtml(entry) {
+  const lines = GaiaMind.narrate(entry);
+  let html =
+    `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:14px">Gaia's understanding</p>` +
+    lines.map(l =>
+      `<p style="font-size:13.5px;line-height:1.75;color:#B8C2CE;margin-bottom:12px">${l}</p>`
+    ).join("");
+
+  if (entry.score != null) {
+    const wAvg = 0.5; /* normalized world midpoint */
+    const rel = entry.score > wAvg + 0.07 ? "above" : entry.score < wAvg - 0.07 ? "below" : "near";
+    html += `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(120,160,170,0.14);display:flex;justify-content:space-between;align-items:baseline">
+        <span style="color:#8B98A8;font-size:12.5px">Shared wellbeing — ${rel} the world average</span>
+        <span style="color:#3FBFA8;font-family:Marcellus,serif;font-size:18px">${Math.round(entry.score * 100)}%</span>
+      </div>`;
+  }
+  html += `<p style="font-size:11px;color:#56616F;margin-top:14px">Computed from open World Bank data. Nothing invented.</p>`;
+  return html;
+}
+
+/* ---------- Region panel ---------- */
+
+function openRegion(feature) {
+  const name = feature.properties.ADMIN;
+  const iso = feature.properties.ISO_A3;
+
+  globe.labelsData([]);   /* clear any place marker from a previous search */
+  selectedIso = iso;
+  globe.hexPolygonColor(hexColor);
+
+  document.getElementById("region-name").textContent = name;
+
+  const body = document.getElementById("region-body");
+  const entry = GaiaMind.indexFor(feature);
+
+  if (entry) {
+    body.innerHTML = narrativeHtml(entry);
+  } else {
+    body.textContent = GaiaData.emptyRegionMessage;
+  }
+
+  /* Human voices near this region */
+  const c0 = centroid(feature);
+  currentLocation = { name, lat: c0.lat, lng: c0.lng };
+  const status = document.querySelector(".region-status");
+  const vn = GaiaMind.voicesNear(c0.lat, c0.lng);
+  let sHtml = vn.total > 0
+    ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>`
+    : `No voices have spoken to Gaia near here yet. This region is quiet — for now.`;
+  if (vn.total > 0) {
+    sHtml += ``  +
+      (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".");
+  }
+  status.innerHTML = sHtml;
+
+  document.getElementById("region-panel").classList.add("open");
+
+  globe.controls().autoRotate = false;
+  const regionAlt = window.matchMedia("(max-width: 720px)").matches ? 2.4 : 1.6;
+  globe.pointOfView({ lat: c0.lat, lng: c0.lng, altitude: regionAlt }, 1100);
+}
+
+function closeRegion() {
+  document.getElementById("region-panel").classList.remove("open");
+  selectedIso = null;
+  globe.hexPolygonColor(hexColor);
+  globe.labelsData([]);   /* remove the gold place marker */
+  currentLocation = null;
+  globe.controls().autoRotate = true;
+}
+
+/* Rough centroid from geometry — good enough for camera framing */
+function centroid(feature) {
+  let pts = [];
+  const g = feature.geometry;
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+  polys.forEach(p => p[0].forEach(pt => pts.push(pt)));
+  const lng = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  return { lat, lng };
+}
+
+/* ---------- Search — countries + any place on Earth ---------- */
+
+function setupSearch() {
+  const input = document.getElementById("search");
+  const results = document.getElementById("search-results");
+  let debounce = null;
+  let lastQuery = "";
+
+  const render = (countryMatches, places, searching) => {
+    results.innerHTML = "";
+
+    countryMatches.forEach(c => {
+      const btn = document.createElement("button");
+      btn.textContent = c.properties.ADMIN;
+      btn.onclick = () => {
+        input.value = "";
+        results.classList.remove("open");
+        openRegion(c);
+      };
+      results.appendChild(btn);
+    });
+
+    if (searching) {
+      const note = document.createElement("button");
+      note.textContent = "Searching the world...";
+      note.disabled = true;
+      note.style.opacity = "0.55";
+      note.style.cursor = "default";
+      results.appendChild(note);
+    }
+
+    places.forEach(p => {
+      const btn = document.createElement("button");
+      btn.innerHTML = `${p.name}<span style="display:block;font-size:11.5px;color:#56616F;margin-top:1px">${p.sub || p.kind}</span>`;
+      btn.onclick = () => {
+        input.value = "";
+        results.classList.remove("open");
+        openPlace(p);
+      };
+      results.appendChild(btn);
+    });
+
+    results.classList.toggle("open",
+      countryMatches.length + places.length > 0 || searching);
+  };
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim();
+    lastQuery = q;
+    clearTimeout(debounce);
+
+    if (q.length < 2) { results.classList.remove("open"); return; }
+
+    const countryMatches = countries
+      .filter(c => c.properties.ADMIN.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 4);
+
+    render(countryMatches, [], q.length >= 3);
+
+    if (q.length < 3) return;
+
+    /* Gentle debounce — Nominatim asks for max 1 request/second */
+    debounce = setTimeout(async () => {
+      try {
+        const url =
+          "https://nominatim.openstreetmap.org/search?format=jsonv2" +
+          "&limit=5&addressdetails=1&accept-language=en&q=" +
+          encodeURIComponent(q);
+        const res = await fetch(url);
+        const raw = await res.json();
+        if (lastQuery !== q) return; /* user kept typing */
+
+        const places = raw
+          .filter(r => r.lat && r.lon)
+          .map(r => {
+            const ad = r.address || {};
+            const region = ad.state || ad.region || ad.province || ad.state_district || ad.county || "";
+            const kind = (r.addresstype || r.type || "place")
+              .replace(/_/g, " ").replace(/^\w/, ch => ch.toUpperCase());
+            /* Subtitle that disambiguates same-named places:
+               "Municipality · Paraná — Brazil" */
+            const parts = [kind];
+            if (region) parts.push(region);
+            const sub = parts.join(" · ") + (ad.country ? " — " + ad.country : "");
+            return {
+              name: r.name || (r.display_name || "").split(",")[0],
+              kind, region, sub,
+              country: ad.country,
+              cc: ad.country_code,
+              lat: +r.lat,
+              lng: +r.lon,
+              type: r.addresstype || r.type
+            };
+          })
+          .slice(0, 6);
+
+        render(countryMatches, places, false);
+      } catch (e) {
+        if (lastQuery === q) render(countryMatches, [], false);
+      }
+    }, 500);
+  });
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".search-wrap")) results.classList.remove("open");
+  });
+}
+
+/* ---------- Open a city, town or neighborhood ---------- */
+
+function openPlace(p) {
+  /* Gold marker where the place lives */
+  globe
+    .labelsData([p])
+    .labelLat(d => d.lat)
+    .labelLng(d => d.lng)
+    .labelText(d => d.name)
+    .labelSize(0.55)
+    .labelDotRadius(0.22)
+    .labelColor(() => "rgba(217, 164, 65, 0.95)")
+    .labelResolution(2);
+
+  /* How close the camera flies depends on the kind of place */
+  const closeTypes = ["suburb", "neighbourhood", "quarter", "village", "hamlet"];
+  let altitude = closeTypes.includes(p.type) ? 0.18
+    : ["city", "town", "municipality"].includes(p.type) ? 0.35
+    : 0.7;
+  /* On phones, never zoom so close the globe fills the screen */
+  if (window.matchMedia("(max-width: 720px)").matches) altitude = Math.max(altitude, 1.2);
+
+  globe.controls().autoRotate = false;
+  globe.pointOfView({ lat: p.lat, lng: p.lng, altitude }, 1400);
+
+  /* Context: the country this place belongs to */
+  let countryFeature = null;
+  if (p.cc) {
+    const cc = p.cc.toUpperCase();
+    countryFeature = countries.find(c => c.properties.ISO_A2 === cc) || null;
+  }
+  if (!countryFeature && p.country) {
+    const n = p.country.toLowerCase();
+    countryFeature = countries.find(c =>
+      (c.properties.ADMIN || "").toLowerCase() === n) || null;
+  }
+
+  selectedIso = countryFeature ? countryFeature.properties.ISO_A3 : null;
+  globe.hexPolygonColor(hexColor);
+
+  document.getElementById("region-name").textContent = p.name;
+
+  const body = document.getElementById("region-body");
+  const entry = countryFeature ? GaiaMind.indexFor(countryFeature) : null;
+
+  let html = "";
+  if (p.country) {
+    html += `<p style="font-size:12px;color:#8B98A8;margin-bottom:16px">${p.kind} · ${p.country}</p>`;
+  }
+
+  if (entry) {
+    html += narrativeHtml(entry) +
+      `<p style="font-size:11px;color:#56616F;margin-top:6px">Gaia's data resolution is national for now. Local signals arrive in a future phase.</p>`;
+  } else {
+    html += `<p>${GaiaData.emptyRegionMessage}</p>`;
+  }
+  body.innerHTML = html;
+
+  /* Human voices near this exact place */
+  currentLocation = { name: p.name + (p.region ? ", " + p.region : "") + (p.country ? ", " + p.country : ""), lat: p.lat, lng: p.lng };
+  const status = document.querySelector(".region-status");
+  const vn = GaiaMind.voicesNear(p.lat, p.lng);
+  let sHtml = vn.total > 0
+    ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>` +
+      (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".")
+    : `No voices have spoken to Gaia near here yet. Be the first to share what you're experiencing.`;
+  status.innerHTML = sHtml;
+
+  document.getElementById("region-panel").classList.add("open");
+}
+
+document.getElementById("region-close").addEventListener("click", closeRegion);
+
+/* ---------- About ---------- */
+
+document.getElementById("about-open").addEventListener("click", () =>
+  document.getElementById("about").classList.add("open"));
+document.getElementById("about-close").addEventListener("click", () =>
+  document.getElementById("about").classList.remove("open"));
+document.getElementById("about").addEventListener("click", e => {
+  if (e.target === e.currentTarget)
+    e.currentTarget.classList.remove("open");
+});
+
+/* ---------- Speak to Gaia ---------- */
+
+let chosenTheme = null;
+let chosenDirection = null;
+let speakLocation = null;
+
+function setupSpeak() {
+  const modal = document.getElementById("speak");
+  const chips = document.getElementById("theme-chips");
+
+  const dirCards = document.getElementById("direction-choice");
+  if (dirCards) {
+    [...dirCards.querySelectorAll(".dir-card")].forEach(card => {
+      card.addEventListener("click", () => {
+        chosenDirection = card.dataset.dir;
+        [...dirCards.children].forEach(c => c.classList.remove("sel"));
+        card.classList.add("sel");
+        document.getElementById("speak-rest").style.display = "";
+        const promptEl = document.getElementById("speak-prompt");
+        if (promptEl) promptEl.textContent = pickQuestion(chosenDirection);
+      });
+    });
+  }
+
+  GaiaMind.voiceThemes.forEach(t => {
+    const b = document.createElement("button");
+    b.textContent = t.label;
+    b.onclick = () => {
+      chosenTheme = t.key;
+      [...chips.children].forEach(c => c.classList.remove("sel"));
+      b.classList.add("sel");
+      const ta = document.getElementById("speak-text");
+      if (ta) ta.placeholder = chosenDirection === "better"
+        ? "What is improving here? What seems to be helping?"
+        : t.prompt;
+    };
+    chips.appendChild(b);
+  });
+
+  const whereLine = () => {
+    document.getElementById("speak-where").textContent = speakLocation
+      ? "Your voice will rest at: " + speakLocation.name
+      : "No place chosen — your voice will speak for the whole Earth.";
+  };
+
+  const speakTextEl = document.getElementById("speak-text");
+  if (speakTextEl) speakTextEl.addEventListener("input", detectPlaceInText);
+
+  function openSpeak(preDir) {
+    document.getElementById("speak-form").style.display = "";
+    const sb = document.getElementById("speak-place-suggest");
+    if (sb) sb.style.display = "none";
+    lastDetected = "";
+    document.getElementById("speak-done").style.display = "none";
+    document.getElementById("speak-error").style.display = "none";
+    speakLocation = currentLocation || null;
+    chosenDirection = null;
+    chosenTheme = null;
+    document.querySelectorAll("#direction-choice .dir-card").forEach(c => c.classList.remove("sel"));
+    document.querySelectorAll("#theme-chips button").forEach(c => c.classList.remove("sel"));
+    document.getElementById("speak-rest").style.display = "none";
+    document.getElementById("speak-loc").value = speakLocation ? speakLocation.name : "";
+    whereLine();
+    modal.classList.add("open");
+
+    /* If the visitor already chose a direction on the home screen,
+       preselect it, hide the redundant direction step, and reveal themes. */
+    const dirStep = document.getElementById("direction-step");
+    if (preDir === "better" || preDir === "worse") {
+      chosenDirection = preDir;
+      if (dirStep) dirStep.style.display = "none";
+      document.getElementById("speak-rest").style.display = "";
+      const promptEl = document.getElementById("speak-prompt");
+      if (promptEl) promptEl.textContent = pickQuestion(preDir);
+    } else {
+      if (dirStep) dirStep.style.display = "";
+    }
+  }
+
+  /* Home-screen direction buttons open Speak with the choice already made */
+  document.querySelectorAll(".speak-dir-btn").forEach(btn => {
+    btn.addEventListener("click", () => openSpeak(btn.dataset.dir));
+  });
+
+  /* Fallback: a hidden/legacy speak-open trigger still works if present */
+  const legacyOpen = document.getElementById("speak-open");
+  if (legacyOpen) legacyOpen.addEventListener("click", () => openSpeak());
+
+  /* (a) Detect a place mentioned in the text when none is chosen.
+     Matches against known country names + place names from voices,
+     then confirms the exact spot via Nominatim — no AI needed. */
+  let placeDetectTimer = null, lastDetected = "";
+  const suggestBox = document.getElementById("speak-place-suggest");
+
+  function knownPlaceNames() {
+    const names = new Set();
+    (countries || []).forEach(c => {
+      const n = c.properties && (c.properties.ADMIN || c.properties.NAME);
+      if (n) names.add(n.toLowerCase());
+    });
+    (GaiaData.voicePoints || []).forEach(p => {
+      if (p.place) names.add(p.place.split(",")[0].trim().toLowerCase());
+    });
+    return names;
+  }
+
+  function detectPlaceInText() {
+    if (speakLocation) { suggestBox.style.display = "none"; return; }
+    const ta = document.getElementById("speak-text");
+    const text = (ta.value || "").toLowerCase();
+    if (text.length < 6) { suggestBox.style.display = "none"; return; }
+
+    /* Find a capitalized place-like word in the ORIGINAL text */
+    const original = ta.value || "";
+    const candidates = (original.match(/\b[A-ZÀ-Ý][a-zà-ÿ]{2,}(?:\s[A-ZÀ-Ý][a-zà-ÿ]{2,})?/g) || []);
+    const known = knownPlaceNames();
+    let found = null;
+    /* Prefer a candidate that matches a known place name */
+    for (const c of candidates) {
+      if (known.has(c.toLowerCase())) { found = c; break; }
+    }
+    /* Otherwise take the first capitalized word that isn't the sentence start only */
+    if (!found && candidates.length) {
+      const stopWords = ["i","the","my","our","we","gaia"];
+      found = candidates.find(c => !stopWords.includes(c.toLowerCase())) || null;
+    }
+
+    if (!found || found.toLowerCase() === lastDetected) {
+      if (!found) suggestBox.style.display = "none";
+      return;
+    }
+    lastDetected = found.toLowerCase();
+
+    clearTimeout(placeDetectTimer);
+    placeDetectTimer = setTimeout(async () => {
+      try {
+        const url = "https://nominatim.openstreetmap.org/search?format=jsonv2" +
+          "&limit=1&addressdetails=1&accept-language=en&q=" + encodeURIComponent(found);
+        const res = await fetch(url);
+        const raw = await res.json();
+        if (!raw.length || speakLocation) { suggestBox.style.display = "none"; return; }
+        const r = raw[0];
+        const ad = r.address || {};
+        const region = ad.state || ad.region || ad.province || ad.county || "";
+        const full = (r.name || found) + (region ? ", " + region : "") + (ad.country ? ", " + ad.country : "");
+        suggestBox.innerHTML =
+          `You mentioned <b style="color:#E8EDF2">${found}</b>. Use this as your location?<br>` +
+          `<button id="accept-place" style="margin-top:8px;background:rgba(63,191,168,0.12);border:1px solid rgba(63,191,168,0.4);border-radius:999px;padding:5px 14px;color:#3FBFA8;font-family:inherit;font-size:12px;cursor:pointer">Use ${full.split(",")[0]}</button>`;
+        suggestBox.style.display = "block";
+        document.getElementById("accept-place").onclick = () => {
+          speakLocation = { name: full, lat: +r.lat, lng: +r.lon };
+          locInput.value = full;
+          whereLine();
+          suggestBox.style.display = "none";
+        };
+      } catch (e) { suggestBox.style.display = "none"; }
+    }, 700);
+  }
+
+  /* Location search inside the form (Nominatim, debounced) */
+  const locInput = document.getElementById("speak-loc");
+  const locResults = document.getElementById("speak-loc-results");
+  let locDebounce = null, locLast = "";
+
+  locInput.addEventListener("input", () => {
+    const q = locInput.value.trim();
+    locLast = q;
+    clearTimeout(locDebounce);
+    if (!q) { speakLocation = null; whereLine(); locResults.classList.remove("open"); return; }
+    if (q.length < 3) { locResults.classList.remove("open"); return; }
+
+    locDebounce = setTimeout(async () => {
+      try {
+        const url = "https://nominatim.openstreetmap.org/search?format=jsonv2" +
+          "&limit=5&addressdetails=1&accept-language=en&q=" + encodeURIComponent(q);
+        const res = await fetch(url);
+        const raw = await res.json();
+        if (locLast !== q) return;
+        locResults.innerHTML = "";
+        raw.filter(r => r.lat && r.lon).slice(0, 6).forEach(r => {
+          const ad = r.address || {};
+          const region = ad.state || ad.region || ad.province || ad.state_district || ad.county || "";
+          const base = r.name || (r.display_name || "").split(",")[0];
+          /* Full name disambiguates: "Londrina, Paraná, Brazil" */
+          const name = base + (region ? ", " + region : "") + (ad.country ? ", " + ad.country : "");
+          const b = document.createElement("button");
+          b.innerHTML = `${base}<span style="display:block;font-size:11px;color:#56616F">${[region, ad.country].filter(Boolean).join(" — ")}</span>`;
+          b.onclick = () => {
+            speakLocation = { name, lat: +r.lat, lng: +r.lon };
+            locInput.value = name;
+            locResults.classList.remove("open");
+            whereLine();
+          };
+          locResults.appendChild(b);
+        });
+        locResults.classList.toggle("open", locResults.children.length > 0);
+      } catch (e) { locResults.classList.remove("open"); }
+    }, 500);
+  });
+
+  document.getElementById("speak-close").addEventListener("click", () =>
+    modal.classList.remove("open"));
+  modal.addEventListener("click", e => {
+    if (e.target === e.currentTarget) modal.classList.remove("open");
+  });
+
+  document.getElementById("speak-send").addEventListener("click", async () => {
+    const err = document.getElementById("speak-error");
+    const msg = document.getElementById("speak-text").value.trim();
+
+    if (!chosenDirection) {
+      err.textContent = "First choose: getting worse or getting better?"; err.style.display = ""; return;
+    }
+    if (!chosenTheme) {
+      err.textContent = "Choose a theme."; err.style.display = ""; return;
+    }
+    if (msg.length < 2) {
+      err.textContent = "Write a few words — Gaia is listening."; err.style.display = ""; return;
+    }
+    err.style.display = "none";
+
+    const payload = {
+      theme: chosenTheme,
+      direction: chosenDirection,
+      message: msg,
+      lat: speakLocation ? speakLocation.lat : null,
+      lng: speakLocation ? speakLocation.lng : null,
+      place: speakLocation ? speakLocation.name : null
+    };
+
+    try {
+      const res = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error("channel closed");
+
+      const t = GaiaMind.voiceThemes.find(v => v.key === chosenTheme);
+      const echo = document.getElementById("speak-echo");
+      if (echo && t) {
+        const better = chosenDirection === "better";
+        const head = better
+          ? "Your voice strengthens a signal of improvement"
+          : "Your voice joins a signal of concern";
+        const col = better ? "#3FBFA8" : "#D9A441";
+
+        const axis = better ? GaiaData.voiceBetter : GaiaData.voiceWorse;
+        const relatedThemeKeys = GaiaMind.voiceThemes.filter(v => v.layer2 === t.layer2).map(v => v.key);
+        const relatedVoices = relatedThemeKeys
+          .reduce((s, k) => s + (((axis && axis.byTheme) || {})[k] || 0), 0) + 1;
+        const relatedRegions = new Set(
+          (GaiaData.voicePoints || [])
+            .filter(p => relatedThemeKeys.includes(p.theme) &&
+              (better ? p.direction === "better" : p.direction !== "better"))
+            .map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+        ).size || 1;
+
+        const placeLine = speakLocation ? speakLocation.name.split(",")[0] : "worldwide";
+
+        echo.innerHTML =
+          `<p style="font-family:Marcellus,serif;font-size:18px;color:#E8EDF2;margin-bottom:4px">Your voice was heard.</p>` +
+          `<p style="font-size:12.5px;color:#8B98A8;margin-bottom:14px;line-height:1.6">It doesn't disappear here — it becomes part of something larger.</p>` +
+          `<p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">${head}</p>` +
+          `<p style="font-family:Marcellus,serif;font-size:21px;color:${col}">${t.layer2}</p>` +
+          `<div style="margin-top:12px;font-size:13px;color:#8B98A8;line-height:1.9">` +
+            `<div>Theme · <span style="color:#E8EDF2">${t.label}</span></div>` +
+            `<div>Region · <span style="color:#E8EDF2">${placeLine}</span></div>` +
+            `<div>Related voices · <span style="color:#E8EDF2">${relatedVoices}</span></div>` +
+            `<div>Regions reporting · <span style="color:#E8EDF2">${relatedRegions}</span></div>` +
+            `<div>State · <span style="color:${col}">Listening</span></div>` +
+          `</div>` +
+          `<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(120,160,170,0.14)">` +
+            `<p style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#56616F;margin-bottom:6px">Why your voice matters</p>` +
+            `<p style="font-size:12.5px;color:#8B98A8;line-height:1.6">When many people describe similar experiences across different places, Gaia can detect emerging human signals that no one could see alone.</p>` +
+          `</div>` +
+          `<button id="echo-explore" class="speak-btn" style="width:100%;margin-top:14px;justify-content:center">Explore this signal in the Pulse</button>`;
+
+        /* Speak → Echo → Pulse flow */
+        const ex = document.getElementById("echo-explore");
+        if (ex) ex.addEventListener("click", () => {
+          document.getElementById("speak").classList.remove("open");
+          renderHumanityPulse();
+          document.getElementById("hpulse").classList.add("open");
+        });
+
+        /* Save to local history (no login, browser only) */
+        rememberContribution({
+          theme: t.label, layer2: t.layer2, direction: chosenDirection,
+          place: speakLocation ? speakLocation.name.split(",")[0] : "Worldwide",
+          date: Date.now()
+        });
+      }
+      document.getElementById("speak-form").style.display = "none";
+      document.getElementById("speak-done").style.display = "";
+      document.getElementById("speak-text").value = "";
+
+      /* Refresh the voices layer */
+      GaiaMind.listenVoices().then(v => {
+        voicePts = v; refreshPoints(); fillPulse();
+      });
+    } catch (e) {
+      err.textContent = "The listening channel opens when Gaia is online (this is the local preview).";
+      err.style.display = "";
+    }
+  });
+}
+
+/* Resonance memory — one gesture per theme per browser */
+let resoMemory = {};
+try { resoMemory = JSON.parse(localStorage.getItem("gaia_resonance") || "{}"); } catch (e) {}
+function hasResonated(theme) { return !!resoMemory[theme]; }
+function rememberResonance(theme) {
+  resoMemory[theme] = true;
+  try { localStorage.setItem("gaia_resonance", JSON.stringify(resoMemory)); } catch (e) {}
+}
+
+/* ---------- Humanity Pulse panel ---------- */
+
+function renderHumanityPulse() {
+  const body = document.getElementById("hpulse-body");
+  const foot = document.getElementById("hpulse-foot");
+  const themes = GaiaMind.humanityPulse();
+  const totalVoices = themes.reduce((s, t) => s + t.voices, 0);
+
+  /* Layer 3 — emerging signals, shown above the themes */
+  const dotColor = { green: "#3FBFA8", amber: "#D9A441", yellow: "#C9B8F0" };
+  const sigBox = document.getElementById("hpulse-signals");
+
+  const renderSignalGroup = (title, list, accent) => {
+    const named = list.filter(s => s.tier);
+    if (named.length) {
+      return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
+        named.map(s => `
+          <div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:14px;color:#E8EDF2">${s.signal}</span>
+              <span style="font-size:11.5px;color:#56616F">${s.regions} region${s.regions === 1 ? "" : "s"}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${dotColor[s.dot]};display:inline-block"></span>
+              <span style="font-size:11.5px;color:#8B98A8">${s.tier} · ${s.tierLabel}</span>
+            </div>
+          </div>`).join("");
+    }
+    const heard = GaiaData.globalPulse.voices;
+    const isImprove = accent === "#3FBFA8";
+    const heardLine = (typeof heard === "number" && heard > 0)
+      ? `${heard} voice${heard === 1 ? "" : "s"} heard so far. ` : "";
+    const body = isImprove
+      ? `Gaia is still listening. ${heardLine}Early observations suggest something may be forming — more voices are needed before patterns become clear.`
+      : `Gaia is still listening. ${heardLine}A possible signal is beginning to emerge — more voices are needed before patterns become clear.`;
+    return `<p class="about-sub" style="margin-top:0 !important;color:${accent} !important">${title}</p>` +
+      `<p style="font-size:13px;color:#8B98A8;line-height:1.6;margin-bottom:8px">${body}</p>`;
+  };
+
+  if (sigBox) {
+    /* Humanity Snapshot — makes the observatory feel alive */
+    const pts = GaiaData.voicePoints || [];
+    const totalVoices = GaiaData.globalPulse.voices;
+    const regionCount = new Set(
+      pts.map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
+    ).size;
+    const byTheme = GaiaData.voiceByTheme || {};
+    let topTheme = null, topN = 0;
+    Object.entries(byTheme).forEach(([k, n]) => { if (n > topN) { topN = n; topTheme = k; } });
+    const topLabel = topTheme ? (THEME_LABELS[topTheme] || topTheme) : "—";
+
+    const snapshot = `
+      <div style="border:1px solid rgba(120,160,170,0.18);border-radius:12px;padding:16px 18px;margin-bottom:22px;background:rgba(255,255,255,0.02)">
+        <p class="about-sub" style="margin-top:0 !important">Humanity snapshot</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <div><div style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${typeof totalVoices === "number" ? totalVoices : "—"}</div><div style="font-size:11.5px;color:#56616F">voices heard</div></div>
+          <div><div style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${regionCount || "—"}</div><div style="font-size:11.5px;color:#56616F">regions represented</div></div>
+          <div style="grid-column:1/-1"><div style="font-size:14px;color:#C9B8F0">${topLabel}</div><div style="font-size:11.5px;color:#56616F">most active topic</div></div>
+        </div>
+      </div>`;
+
+    const worse = GaiaMind.emergingSignals();
+    const better = GaiaMind.improvementSignals();
+    const helps = GaiaMind.whatHelps();
+
+    let html = snapshot;
+    html += renderSignalGroup("Emerging concerns", worse, "#D9A441");
+    html += `<div style="height:20px"></div>`;
+    html += renderSignalGroup("Signals of improvement", better, "#3FBFA8");
+
+    if (helps.length) {
+      html += `<div style="height:20px"></div>` +
+        `<p class="about-sub" style="margin-top:0 !important;color:#3FBFA8 !important">Where things improve, people mention</p>` +
+        helps.map(h => `<div style="font-size:13px;color:#8B98A8;margin-bottom:8px"><span style="color:#E8EDF2">${h.label}:</span> ${h.words.join(", ")}</div>`).join("");
+    }
+
+    html += `<div style="height:14px"></div><p style="font-size:11.5px;color:#56616F;line-height:1.6;margin-bottom:18px;font-style:italic">Gaia measures the voices that choose to participate — not humanity itself.</p>`;
+    sigBox.innerHTML = html;
+  }
+
+  const themesHeader = `<p class="about-sub" style="margin-top:4px">Explore by topic</p>`;
+  body.innerHTML = themesHeader + themes.map(t => `
+    <div style="border:1px solid rgba(120,160,170,0.14);border-radius:12px;padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14.5px;color:#E8EDF2">${t.label}</span>
+        <span style="font-family:Marcellus,serif;font-size:18px;color:#C9B8F0">${t.voices}</span>
       </div>
-      <div class="pulse-card">
-        <div class="num" id="pulse-planet">—</div>
-        <div class="cap">Signals forming</div>
+      <div style="font-size:11.5px;color:#56616F;margin-top:2px">
+        voice${t.voices === 1 ? "" : "s"}${t.regions ? ` · ${t.regions} region${t.regions === 1 ? "" : "s"}` : ""}
       </div>
-      <div class="pulse-card" style="grid-column:1/-1">
-        <div class="num" id="pulse-human">—</div>
-        <div class="cap">Regions represented</div>
-      </div>
+      ${(() => {
+        const v = t.voices || 0;
+        if (v === 0) return "";
+        /* Below a real sample, never claim a trend — just name the stage */
+        let label, col;
+        if (v < 15)      { label = "New signal";     col = "#56616F"; }
+        else if (v < 120){ label = "Growing";        col = "#D9A441"; }
+        else if (v < 800){ label = "Emerging";       col = "#D9A441"; }
+        else             { label = "Strong signal";  col = "#3FBFA8"; }
+        return `<div style="font-size:12px;color:${col};margin-top:6px">${label}</div>`;
+      })()}
+      ${(t.worse || t.better) ? `<div style="font-size:12px;margin-top:6px">
+        <span style="color:#D9A441">${t.worse} getting worse</span>
+        <span style="color:#56616F"> · </span>
+        <span style="color:#3FBFA8">${t.better} improving</span>
+      </div>` : ""}
+      ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
+      ${(t.voices >= 10 && t.concerns && t.concerns.length) ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
     </div>
-    <div class="legend">
-      <span id="leg-planet" title="Click to show/hide"><i style="background:#D9A441"></i> Voices — concern (gold) &amp; hope (aqua)</span>
-      <span id="leg-well" title="Click to show/hide"><i style="background:linear-gradient(90deg,#29586E,#3FBFA8,#8FF0CF);border-radius:3px;width:26px"></i> Humanity&#39;s wellbeing — cold to luminous</span>
-    </div>
-  </div>
+  `).join("");
 
-  <div class="panel-footer">
-    <span class="phase">Phase 5 — Meaning</span><br>
-    Gaia waits before concluding. Collective questions are never rushed.
-  </div>
-</aside>
+  foot.textContent = totalVoices > 0
+    ? `Gaia has heard ${totalVoices} voice${totalVoices === 1 ? "" : "s"} so far. Patterns emerge when many speak — collective questions are never rushed.`
+    : "Gaia is listening. The first voices will appear here — patterns emerge when many speak.";
+}
 
-<!-- Right panel — region detail -->
-<aside id="region-panel" class="region-panel">
-  <button id="region-close" class="region-close" aria-label="Close panel">×</button>
-  <div class="region-eyebrow">Region</div>
-  <h2 id="region-name" class="region-name">—</h2>
-  <div id="region-body" class="region-body"></div>
-  <div class="region-status">
-    Anonymous human voices, and country wellbeing indicators (World Bank). Real, open, verifiable sources.
-  </div>
-</aside>
+function setupHumanityPulse() {
+  const modal = document.getElementById("hpulse");
+  document.getElementById("pulse-open").addEventListener("click", () => {
+    renderHumanityPulse();
+    modal.classList.add("open");
+  });
+  document.getElementById("hpulse-close").addEventListener("click", () =>
+    modal.classList.remove("open"));
+  modal.addEventListener("click", e => {
+    if (e.target === e.currentTarget) modal.classList.remove("open");
+  });
+}
 
-<!-- Explore -->
-<div id="explore" class="about-modal">
-  <div class="about-card" style="text-align:left;width:min(520px,94vw)">
-    <button id="explore-close" class="region-close" aria-label="Close">&times;</button>
-    <p class="about-sub" style="margin-top:0 !important">Explore</p>
-    <p style="font-size:13px;color:#8B98A8;margin-bottom:16px">Navigate what people are experiencing — by theme and by place. Built only from real voices.</p>
-    <div id="explore-body"></div>
-  </div>
-</div>
+/* ---------- Share this insight ---------- */
 
-<!-- Your Contributions -->
-<div id="contrib" class="about-modal">
-  <div class="about-card" style="text-align:left;width:min(460px,94vw)">
-    <button id="contrib-close" class="region-close" aria-label="Close">&times;</button>
-    <p class="about-sub" style="margin-top:0 !important">Your voices</p>
-    <p style="font-size:13px;color:#8B98A8;margin-bottom:14px">The signals you've contributed to. Remembered on this device only.</p>
-    <div id="contrib-body"></div>
-  </div>
-</div>
+function setupShare() {
+  const btn = document.getElementById("daily-share");
+  btn.addEventListener("click", async () => {
+    const insight = document.getElementById("daily-text").textContent;
+    if (!insight) return;
+    const text = `"${insight}"\n\n— GAIA, an assistant for collective understanding\n${location.origin}`;
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch (e) { /* user closed the sheet */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        const prev = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = prev; }, 2200);
+      } catch (e) {}
+    }
+  });
+}
 
-<!-- Humanity Pulse -->
-<div id="hpulse" class="about-modal">
-  <div class="about-card" style="text-align:left;width:min(560px,94vw)">
-    <button id="hpulse-close" class="region-close" aria-label="Close">&times;</button>
-    <p class="about-sub" style="margin-top:0 !important">Humanity Pulse</p>
-    <p style="font-size:13.5px">What people around the world are experiencing right now — the signals emerging as many voices gather.</p>
-    <div id="hpulse-signals" style="margin-top:18px"></div>
-    <div id="hpulse-body"></div>
-    <p id="hpulse-foot" class="about-foot" style="text-align:left"></p>
-  </div>
-</div>
+/* ---------- Explore: theme -> places -> voices ---------- */
 
-<!-- Today's Insight -->
-<div id="daily" class="daily">
-  <div class="daily-label"><span class="syn-dot"></span> What people are noticing</div>
-  <p id="daily-text"></p>
-  <button id="daily-share" class="share-btn">Share this insight</button>
-</div>
+let exploreTheme = null;
 
-<!-- About -->
-<button id="contrib-open" class="about-btn" style="right:380px;display:none">Your voice</button>
-<button id="explore-open" class="about-btn" style="right:110px">Explore</button>
-<button id="pulse-open" class="about-btn" style="right:290px">Pulse</button>
-<button id="about-open" class="about-btn">About</button>
+function renderExplore() {
+  const body = document.getElementById("explore-body");
+  if (exploreTheme) {
+    const t = GaiaMind.voiceThemes.find(v => v.key === exploreTheme);
+    const sum = GaiaMind.exploreThemeSummary(exploreTheme);
+    const places = GaiaMind.exploreRegions(exploreTheme);
 
-<div id="about" class="about-modal">
-  <div class="about-card">
-    <button id="about-close" class="region-close" aria-label="Close">&times;</button>
-    <svg class="about-mark" viewBox="0 0 120 120" aria-hidden="true">
-      <g fill="none" stroke="#3FBFA8" stroke-width="2">
-        <circle cx="60" cy="60" r="44" opacity="0.35"/>
-        <ellipse cx="60" cy="60" rx="44" ry="17" opacity="0.6"/>
-        <ellipse cx="60" cy="60" rx="17" ry="44" opacity="0.6"/>
-      </g>
-      <circle cx="60" cy="16" r="5" fill="#D9A441"/>
-    </svg>
-    <h2>GAIA</h2>
-    <p class="about-tag">A collective observatory of human experience</p>
-    <p class="about-quote">"Reveal what unites us, invisible beneath the noise of the world."</p>
-    <p style="color:#3FBFA8;font-size:14.5px">A collective observatory of human experience.</p>
-    <p>GAIA listens to anonymous human voices, observes the world through real, open data, and reveals the patterns that emerge when many people speak together.</p>
-    <p>GAIA does not focus on individuals. It focuses on what humanity is experiencing, feeling, and becoming.</p>
-    <p class="about-sub" style="margin-top:24px">Why Gaia exists</p>
-    <p style="font-size:13px;color:#8B98A8;line-height:1.8">People notice change every day — a rising cost of living, a safer neighborhood, new opportunities, growing concerns. Most of these observations disappear, unheard. Gaia exists to listen — so that a single quiet observation can become part of a pattern no one could see alone.</p>
-    <p class="about-sub" style="margin-top:24px">What Gaia can reveal</p>
-    <p style="font-size:13px;color:#8B98A8;line-height:1.7">As voices gather, Gaia begins to surface things no single person can see: where cost-of-living pressure is rising before it reaches official statistics · what people mention when safety improves · which regions are gaining or losing confidence in the future · what concerns are spreading quietly across distant places · and what seems to be working where people report things getting better.</p>
-    <p style="font-size:12.5px;color:#56616F;font-style:italic;margin-top:18px">A note on honesty: GAIA measures the voices that choose to participate, not humanity itself. Every signal carries a confidence level based on how many people spoke and how widely across the world.</p>
-    <p class="about-sub">Her senses today</p>
-    <p><span class="g">The human pulse</span> — anonymous voices rippling across the globe, gold where something is getting worse, aqua where something is improving. <span class="a">Humanity's state</span> — education, health, safety and environment across ~190 nations (World Bank). <span class="a">Every place on Earth</span> — search by city, neighborhood or village (OpenStreetMap).</p>
-    <p class="about-sub">Her principles</p>
-    <p>Neutrality. Patience. Transparency. Humility. Unity. The collective good as the measure of everything.</p>
-    <p class="about-foot">An independent project in its earliest phase. A living thing — the process teaches.</p>
-    <p class="about-foot" style="margin-top:14px !important">Created by Rodrigo Pagnan<br><a href="mailto:gaia.coohe@gmail.com" style="color:#3FBFA8;text-decoration:none">gaia.coohe@gmail.com</a></p>
-  </div>
-</div>
+    let html = `<button id="explore-back" style="background:none;border:none;color:#3FBFA8;font-family:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:14px">&larr; All themes</button>`;
+    html += `<p style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${t.label}</p>`;
+    html += `<div style="display:flex;gap:18px;margin:12px 0 18px;font-size:12.5px;color:#8B98A8">
+      <span><span style="color:#D9A441">${sum.worse}</span> worse</span>
+      <span><span style="color:#3FBFA8">${sum.better}</span> better</span>
+      <span><span style="color:#C9B8F0">${sum.resonance}</span> resonate</span>
+    </div>`;
 
-<!-- Speak to Gaia -->
-<div id="speak" class="about-modal">
-  <div class="about-card" style="text-align:left">
-    <button id="speak-close" class="region-close" aria-label="Close">&times;</button>
-    <p class="about-sub" style="margin-top:0 !important">Speak to Gaia</p>
-    <p style="font-size:13.5px">What are you experiencing where you live? Your voice is anonymous — Gaia never shows individual messages, only the patterns that emerge when many speak.</p>
+    if (sum.total >= 10 && (sum.concernsWorse.length || sum.concernsBetter.length)) {
+      if (sum.concernsWorse.length)
+        html += `<div style="font-size:12.5px;color:#8B98A8;margin-bottom:6px">Recurring where worse: <span style="color:#E8EDF2">${sum.concernsWorse.join(", ")}</span></div>`;
+      if (sum.concernsBetter.length)
+        html += `<div style="font-size:12.5px;color:#8B98A8;margin-bottom:14px">Recurring where better: <span style="color:#E8EDF2">${sum.concernsBetter.join(", ")}</span></div>`;
+    }
 
-    <div id="speak-form">
-      <div id="direction-step">
-      <p class="about-sub">What are you noticing?</p>
-      <p style="font-size:12.5px;color:#8B98A8;margin:-4px 0 14px;line-height:1.55">Your observation may help reveal patterns that no single person can see.</p>
-      <div id="direction-choice" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
-        <button class="dir-card" data-dir="worse">
-          <span class="dir-title">Something is getting worse</span>
-          <span class="dir-sub">What is becoming harder, heavier, or more concerning?</span>
-        </button>
-        <button class="dir-card" data-dir="better">
-          <span class="dir-title">Something is improving</span>
-          <span class="dir-sub">What is improving, helping, or giving hope?</span>
-        </button>
+    if (places.length) {
+      html += `<p class="about-sub">By place</p>`;
+      html += places.map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+          <span style="font-size:14px;color:#E8EDF2">${p.place}</span>
+          <span style="font-size:11.5px;color:#56616F">${p.voices} voice${p.voices === 1 ? "" : "s"} · <span style="color:#D9A441">${p.worse}↓</span> <span style="color:#3FBFA8">${p.better}↑</span></span>
+        </div>`).join("");
+    } else {
+      html += `<p style="font-size:13px;color:#8B98A8">No located voices in this theme yet. When people share what they're experiencing here, places will appear.</p>`;
+    }
+    body.innerHTML = html;
+
+    const back = document.getElementById("explore-back");
+    if (back) back.addEventListener("click", () => { exploreTheme = null; renderExplore(); });
+  } else {
+    /* theme list with counts */
+    body.innerHTML = GaiaMind.voiceThemes.map(t => {
+      const s = GaiaMind.exploreThemeSummary(t.key);
+      return `<button class="explore-theme" data-key="${t.key}" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;color:var(--text-soft);font-family:inherit;cursor:pointer">
+        <span style="font-size:14px;color:#E8EDF2">${t.label}</span>
+        <span style="font-size:12px;color:#56616F">${s.total} voice${s.total === 1 ? "" : "s"} &rarr;</span>
+      </button>`;
+    }).join("");
+    body.querySelectorAll(".explore-theme").forEach(btn => {
+      btn.addEventListener("click", () => { exploreTheme = btn.dataset.key; renderExplore(); });
+    });
+  }
+}
+
+function setupExplore() {
+  const modal = document.getElementById("explore");
+  const open = document.getElementById("explore-open");
+  if (!modal || !open) return;
+  open.addEventListener("click", () => { exploreTheme = null; renderExplore(); modal.classList.add("open"); });
+  document.getElementById("explore-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", e => { if (e.target === e.currentTarget) modal.classList.remove("open"); });
+}
+
+/* Rotating human questions — spark contributions, reduce blank-page block */
+const HUMAN_QUESTIONS = {
+  worse: [
+    "What is becoming harder where you live?",
+    "What worries people most this month?",
+    "What feels different compared to last year?",
+    "What change has been weighing on your community?",
+    "What is quietly getting worse that few talk about?"
+  ],
+  better: [
+    "What is improving where you live that nobody talks about?",
+    "What gives people hope in your region?",
+    "What change surprised you recently — for the better?",
+    "What seems to be working where you live?",
+    "What small thing has been getting better lately?"
+  ]
+};
+function pickQuestion(dir) {
+  const arr = HUMAN_QUESTIONS[dir] || HUMAN_QUESTIONS.worse;
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/* ---------- Your Contributions (local, no login) ---------- */
+
+function loadContributions() {
+  try { return JSON.parse(localStorage.getItem("gaia_contributions") || "[]"); }
+  catch (e) { return []; }
+}
+function rememberContribution(c) {
+  const list = loadContributions();
+  list.unshift(c);
+  try { localStorage.setItem("gaia_contributions", JSON.stringify(list.slice(0, 50))); } catch (e) {}
+  refreshContributionsBadge();
+}
+function refreshContributionsBadge() {
+  const btn = document.getElementById("contrib-open");
+  if (!btn) return;
+  const n = loadContributions().length;
+  btn.style.display = n ? "block" : "none";
+  btn.textContent = n === 1 ? "Your voice" : `Your voices (${n})`;
+}
+function renderContributions() {
+  const body = document.getElementById("contrib-body");
+  const list = loadContributions();
+  if (!list.length) {
+    body.innerHTML = `<p style="font-size:13px;color:#8B98A8">You haven't spoken to Gaia yet. When you do, your voices will be remembered here — on this device only, never tied to your name.</p>`;
+    return;
+  }
+  body.innerHTML = list.map(c => {
+    const col = c.direction === "better" ? "#3FBFA8" : "#D9A441";
+    const d = new Date(c.date);
+    const when = d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+    return `<div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:14px;color:#E8EDF2">${c.theme}</span>
+        <span style="font-size:11.5px;color:#56616F">${when}</span>
       </div>
-      </div>
+      <div style="font-size:12px;color:#8B98A8;margin-top:3px">${c.place} · contributes to <span style="color:${col}">${c.layer2}</span></div>
+    </div>`;
+  }).join("") +
+  `<p style="font-size:11.5px;color:#56616F;margin-top:14px;font-style:italic">Stored only on this device. Gaia keeps no account of who you are.</p>`;
+}
 
-      <div id="speak-rest" style="display:none">
-      <p class="about-sub">Choose a theme</p>
-      <div class="theme-chips" id="theme-chips"></div>
+function setupContributions() {
+  const modal = document.getElementById("contrib");
+  const open = document.getElementById("contrib-open");
+  if (!modal || !open) return;
+  open.addEventListener("click", () => { renderContributions(); modal.classList.add("open"); });
+  document.getElementById("contrib-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", e => { if (e.target === e.currentTarget) modal.classList.remove("open"); });
+  refreshContributionsBadge();
+}
 
-      <p class="about-sub">Your voice <span style="text-transform:none;letter-spacing:0">(max 500)</span></p>
-      <p id="speak-prompt" style="font-size:13px;color:#C9B8F0;margin-bottom:8px;line-height:1.5"></p>
-      <textarea id="speak-text" maxlength="500" rows="3" placeholder="Share what you're noticing where you live..."></textarea>
+/* ---------- Mobile sheet: relocate pulse + legend on phones ---------- */
 
-      <p class="about-sub">Where does your voice belong? <span style="text-transform:none;letter-spacing:0">(optional)</span></p>
-      <div class="search-wrap" style="margin-top:6px">
-        <span class="icon">&#8981;</span>
-        <input id="speak-loc" type="text" placeholder="City, neighborhood, country... or leave empty for the whole Earth" autocomplete="off">
-        <div id="speak-loc-results" class="search-results"></div>
-      </div>
-      <p id="speak-where" style="font-size:12px;color:#56616F;margin-top:10px"></p>
+function setupMobileSheet() {
+  const dock = document.getElementById("mobile-dock");
+  const sheet = document.getElementById("mobile-sheet");
+  const body = document.getElementById("mobile-sheet-body");
+  if (!dock || !sheet || !body) return;
 
-      <div id="speak-place-suggest" style="display:none;margin-top:10px;padding:10px 12px;border:1px solid rgba(63,191,168,0.3);border-radius:10px;font-size:12.5px;color:#8B98A8"></div>
-      <button id="speak-send" class="speak-btn" style="width:100%;margin-top:16px;justify-content:center">Send to Gaia</button>
-      <p id="speak-error" style="font-size:12px;color:#D9A441;margin-top:8px;display:none"></p>
-      </div>
-    </div>
+  const isMobile = () => window.matchMedia("(max-width: 720px)").matches;
 
-    <div id="speak-done" style="display:none;text-align:center;padding:18px 0">
-      <p style="font-family:Marcellus,serif;font-size:20px;color:#E8EDF2">Gaia heard you.</p>
-      <div id="speak-echo" style="margin:18px 0;padding:16px;border:1px solid rgba(201,184,240,0.2);border-radius:12px"></div>
-      <p style="font-size:13px;margin-top:10px">Your voice now rests with the others. When enough voices gather, a pattern will appear on the globe — patient, collective, yours and everyone&#39;s.</p>
-    </div>
-  </div>
-</div>
+  function placeInSheet() {
+    const pulse = document.querySelector(".panel .pulse");
+    const legend = document.querySelector(".panel .legend");
+    if (pulse && pulse.parentElement !== body) body.appendChild(pulse);
+    if (legend && legend.parentElement !== body) body.appendChild(legend);
+  }
+  function placeInPanel() {
+    const panel = document.querySelector(".panel");
+    const footer = document.querySelector(".panel-footer");
+    const pulse = document.getElementById("pulse-planet") ? document.querySelector("#mobile-sheet-body .pulse") : null;
+    const legend = document.querySelector("#mobile-sheet-body .legend");
+    if (pulse) panel.insertBefore(pulse, footer);
+    if (legend) panel.insertBefore(legend, footer);
+  }
 
-<!-- Synthesis — what unites us today -->
-<div id="synthesis" class="synthesis">
-  <div class="syn-label"><span class="syn-dot"></span> Gaia synthesis — what unites us today</div>
-  <p id="syn-text"></p>
-</div>
+  if (isMobile()) placeInSheet();
 
-<!-- Libraries -->
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.2/dist/globe.gl.min.js"></script>
+  dock.addEventListener("click", () => { placeInSheet(); sheet.classList.add("open"); });
+  document.getElementById("mobile-sheet-close").addEventListener("click", () =>
+    sheet.classList.remove("open"));
+  sheet.addEventListener("click", e => {
+    if (e.target === sheet) sheet.classList.remove("open");
+  });
 
-<!-- Gaia layers: data first, then logic -->
-<script src="js/data.js"></script>
-<script src="js/mind.js"></script>
-<script src="js/app.js"></script>
+  window.addEventListener("resize", () => {
+    if (isMobile()) placeInSheet();
+    else { placeInPanel(); sheet.classList.remove("open"); }
+  });
+}
 
-</body>
-</html>
+function setupLegend() {
+  const wire = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => {
+      el.classList.toggle("off");
+      fn(!el.classList.contains("off"));
+    });
+  };
+  wire("leg-planet", v => { showVoices = v; refreshPoints(); });
+  wire("leg-well",   v => { showWell = v; globe.hexPolygonColor(hexColor); });
+}
+
+setupSpeak();
+setupHumanityPulse();
+setupMobileSheet();
+setupContributions();
+setupExplore();
+setupShare();
+setupLegend();
+init();

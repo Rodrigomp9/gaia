@@ -367,16 +367,63 @@ html, body {
 /* ---------- Mobile ---------- */
 
 @media (max-width: 720px) {
+  /* ----- Mobile: clean top bar, contained globe, stacked content ----- */
+
   .panel {
     width: 100%;
     bottom: auto;
-    padding: 28px 22px;
-    background: linear-gradient(180deg, rgba(7,11,18,0.94) 40%, rgba(7,11,18,0));
+    padding: 92px 22px 28px;   /* top room for the fixed header buttons */
+    background: linear-gradient(180deg, rgba(7,11,18,0.96) 55%, rgba(7,11,18,0.75) 80%, rgba(7,11,18,0));
   }
   .pulse, .panel-footer { display: none; }
-  .wordmark { font-size: 26px; }
-  .mission { font-size: 13px; }
-  .search-wrap { margin-top: 22px; }
+  .wordmark { font-size: 24px; }
+  .mission { font-size: 13px; max-width: none; }
+  .cando { max-width: none; }
+  .search-wrap { margin-top: 20px; }
+
+  /* Brand stays top-left, above everything */
+  .brand { position: relative; z-index: 6; }
+
+  /* Header buttons: reset desktop pixel offsets, lay them in a row top-right */
+  .about-btn {
+    position: fixed;
+    top: 18px;
+    right: auto;
+    left: auto;
+    padding: 7px 13px;
+    font-size: 12px;
+    z-index: 7;
+  }
+  /* Place the three nav buttons in a neat right-aligned row.
+     Inline `right:` values from HTML are overridden here. */
+  #about-open   { right: 16px !important; }
+  #explore-open { right: 84px !important; }
+  #pulse-open   { right: 168px !important; }
+  /* "Your voice" sits on the next row when present, left-aligned under brand */
+  #contrib-open {
+    right: auto !important;
+    left: 16px !important;
+    top: 56px !important;
+    padding: 5px 12px;
+    font-size: 11.5px;
+  }
+
+  /* Globe: contained, sits in the open space below the search bar */
+  #globe-container {
+    position: fixed;
+    top: auto;
+    bottom: 120px;        /* rests above the Pulse & Layers dock */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92vw;
+    height: 92vw;         /* square keeps the globe whole, not cropped */
+    max-height: 52vh;
+    z-index: 0;
+    opacity: 0.95;
+  }
+
+  /* Today's insight: keep clear of the header row */
+  .daily { top: 92px; }
 }
 
 /* ---------- Legend ---------- */
@@ -565,22 +612,59 @@ html, body {
 @media (max-width: 720px) {
   .about-btn { top: 18px; right: 16px; padding: 7px 14px; }
 
+  /* iOS zooms any input under 16px on focus — force 16px on phones.
+     The page no longer jumps/zooms when the keyboard opens. */
+  .search-wrap input,
+  #speak-loc,
+  #speak-text,
+  textarea,
+  input[type="text"],
+  input[type="search"] {
+    font-size: 16px !important;
+  }
+
   .region-panel {
     width: 100vw;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
     border-left: none;
     border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
     top: auto;
-    height: 62vh;
+    bottom: 0;
+    height: 82vh;
     transform: translateY(105%);
     transition: transform .45s cubic-bezier(.22,1,.3,1);
-    padding: 34px 24px;
+    padding: 30px 22px 40px;
     overflow-y: auto;
+    z-index: 30;            /* above the dock and synthesis so nothing bleeds through */
+  }
+
+  /* Keep all panel text inside the screen — no horizontal overflow */
+  .region-panel * { max-width: 100%; box-sizing: border-box; }
+  .region-panel .region-status { word-wrap: break-word; }
+  .region-panel .region-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    font-size: 26px;
+    padding: 4px 8px;
+    margin: -8px -4px 0 0;
+    z-index: 2;
   }
 
   .region-panel.open { transform: translateY(0); }
 
-  .synthesis { bottom: 14px; width: 92vw; }
-  #syn-text { font-size: 13.5px; }
+  .synthesis {
+    bottom: 18px;
+    width: 92vw;
+    background: rgba(7,11,18,0.7);
+    backdrop-filter: blur(4px);
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  #syn-text { font-size: 12.5px; }
 
   .search-results { max-height: 200px; }
 }
@@ -673,6 +757,10 @@ html, body {
   color: var(--text-faint);
   opacity: 0;
   animation: rise 1.8s ease forwards 2.8s;
+  text-align: center;
+  max-width: 420px;
+  padding: 0 24px;
+  line-height: 1.7;
 }
 
 .cando {
@@ -801,7 +889,7 @@ html, body {
   #mobile-dock {
     display: block;
     position: fixed;
-    bottom: 76px;
+    bottom: 104px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 6;
@@ -870,3 +958,55 @@ html, body {
 .dir-card[data-dir="better"].sel { border-color: #3FBFA8; background: rgba(63,191,168,0.08); }
 .dir-title { font-size: 13.5px; color: var(--text); }
 .dir-sub { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+
+/* ---------- Speak framing line (works at any scale) ---------- */
+.speak-framing {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+/* ---------- Direct Speak buttons (home screen) ---------- */
+.speak-direct {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.speak-dir-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 15px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .15s;
+}
+.speak-dir-btn:hover { transform: translateY(-1px); }
+.speak-dir-btn.better:hover { border-color: #3FBFA8; background: rgba(63,191,168,0.08); }
+.speak-dir-btn.worse:hover  { border-color: #D9A441; background: rgba(217,164,65,0.08); }
+.dir-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .speak-dir-btn { font-size: 15px; padding: 14px 16px; }
+}
+
+/* ---------- Speak subnote (under the main button) ---------- */
+.speak-subnote {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 8px;
+  line-height: 1.5;
+}
