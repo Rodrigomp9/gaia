@@ -22,6 +22,13 @@ let showPlanet = true;
 let showVoices = true;
 let showWell = true;
 
+/* Voice direction colors — coral = getting worse, lime = improving */
+const C_WORSE = "#FF6B6B";          // coral red
+const C_WORSE_RGBA = "255, 107, 107";
+const C_BETTER = "#A3E635";         // electric lime
+const C_BETTER_RGBA = "163, 230, 53";
+
+
 const THEME_LABELS = {
   cost: "Cost of Living",
   safety: "Safety",
@@ -32,12 +39,16 @@ const THEME_LABELS = {
 };
 
 function refreshPoints() {
-  /* Voices ARE the planet's pulse now — each one a ripple of human
-     experience. Gold = something getting worse, aqua = getting better.
+  /* Voices ARE the planet's pulse — each a ripple of human experience.
      A central dot marks the place; rings pulse outward from it. */
-  const vp = showVoices ? voicePts.slice() : [];
-  globe.pointsData(vp);
-  globe.ringsData(vp);
+  if (showVoices) {
+    globe.pointsData(voicePts.slice());
+    globe.ringsData(voicePts.slice());
+  } else {
+    /* Hard clear both layers (Globe.gl can keep animating rings otherwise) */
+    globe.pointsData([]);
+    globe.ringsData([]);
+  }
 }
 
 /* Color ramp for shared wellbeing: cold deep blue (low)
@@ -239,11 +250,11 @@ async function init() {
      Each sense is independent. If one is slow or fails,
      the others live on. */
 
-  /* Central dot for each voice — gold (worse) or aqua (better) */
+  /* Central dot for each voice — coral (worse) or lime (better) */
   globe
     .pointColor(d => d.direction === "better"
-      ? "rgba(63, 191, 168, 0.95)"
-      : "rgba(217, 164, 65, 0.95)")
+      ? `rgba(${C_BETTER_RGBA}, 0.95)`
+      : `rgba(${C_WORSE_RGBA}, 0.95)`)
     .pointAltitude(0.012)
     .pointRadius(d => Math.min(1.1, 0.22 + 0.12 * Math.sqrt(d.count || 1)))
     .pointLabel(d => `
@@ -253,11 +264,11 @@ async function init() {
         color: #E8EDF2;
         background: rgba(10,16,26,0.9);
         border: 1px solid ${d.direction === "better"
-          ? "rgba(63,191,168,0.4)" : "rgba(217,164,65,0.4)"};
+          ? `rgba(${C_BETTER_RGBA},0.4)` : `rgba(${C_WORSE_RGBA},0.4)`};
         border-radius: 8px;
         padding: 6px 10px;
       ">${d.count} voice${d.count > 1 ? "s" : ""} · ${THEME_LABELS[d.theme] || d.theme}<br>
-        <span style="color:${d.direction === "better" ? "#3FBFA8" : "#D9A441"}">${d.direction === "better" ? "improving" : "concern"}</span></div>
+        <span style="color:${d.direction === "better" ? C_BETTER : C_WORSE}">${d.direction === "better" ? "improving" : "concern"}</span></div>
     `);
 
   /* The pulse of the planet is now human: voices ripple outward,
@@ -266,8 +277,8 @@ async function init() {
     .ringColor(d => {
       const better = d.direction === "better";
       return t => better
-        ? `rgba(63, 191, 168, ${Math.max(0, 0.7 - t)})`
-        : `rgba(217, 164, 65, ${Math.max(0, 0.7 - t)})`;
+        ? `rgba(${C_BETTER_RGBA}, ${Math.max(0, 0.7 - t)})`
+        : `rgba(${C_WORSE_RGBA}, ${Math.max(0, 0.7 - t)})`;
     })
     .ringMaxRadius(d => Math.max(1.4, Math.min(5, 1.2 + (d.count || 1) * 0.5)))
     .ringPropagationSpeed(1.3)
@@ -870,7 +881,7 @@ function setupSpeak() {
         const head = better
           ? "Your voice strengthens a signal of improvement"
           : "Your voice joins a signal of concern";
-        const col = better ? "#3FBFA8" : "#D9A441";
+        const col = better ? C_BETTER : C_WORSE;
 
         const axis = better ? GaiaData.voiceBetter : GaiaData.voiceWorse;
         const relatedThemeKeys = GaiaMind.voiceThemes.filter(v => v.layer2 === t.layer2).map(v => v.key);
@@ -971,7 +982,7 @@ function renderHumanityPulse() {
           </div>`).join("");
     }
     const heard = GaiaData.globalPulse.voices;
-    const isImprove = accent === "#3FBFA8";
+    const isImprove = accent === C_BETTER;
     const heardLine = (typeof heard === "number" && heard > 0)
       ? `${heard} voice${heard === 1 ? "" : "s"} heard so far. ` : "";
     const body = isImprove
@@ -1008,13 +1019,13 @@ function renderHumanityPulse() {
     const helps = GaiaMind.whatHelps();
 
     let html = snapshot;
-    html += renderSignalGroup("Emerging concerns", worse, "#D9A441");
+    html += renderSignalGroup("Emerging concerns", worse, C_WORSE);
     html += `<div style="height:20px"></div>`;
-    html += renderSignalGroup("Signals of improvement", better, "#3FBFA8");
+    html += renderSignalGroup("Signals of improvement", better, C_BETTER);
 
     if (helps.length) {
       html += `<div style="height:20px"></div>` +
-        `<p class="about-sub" style="margin-top:0 !important;color:#3FBFA8 !important">Where things improve, people mention</p>` +
+        `<p class="about-sub" style="margin-top:0 !important;color:${C_BETTER} !important">Where things improve, people mention</p>` +
         helps.map(h => `<div style="font-size:13px;color:#8B98A8;margin-bottom:8px"><span style="color:#E8EDF2">${h.label}:</span> ${h.words.join(", ")}</div>`).join("");
     }
 
@@ -1044,9 +1055,9 @@ function renderHumanityPulse() {
         return `<div style="font-size:12px;color:${col};margin-top:6px">${label}</div>`;
       })()}
       ${(t.worse || t.better) ? `<div style="font-size:12px;margin-top:6px">
-        <span style="color:#D9A441">${t.worse} getting worse</span>
+        <span style="color:${C_WORSE}">${t.worse} getting worse</span>
         <span style="color:#56616F"> · </span>
-        <span style="color:#3FBFA8">${t.better} improving</span>
+        <span style="color:${C_BETTER}">${t.better} improving</span>
       </div>` : ""}
       ${t.growingIn && t.growingIn.length ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Voiced in: ${t.growingIn.join(", ")}</div>` : ""}
       ${(t.voices >= 10 && t.concerns && t.concerns.length) ? `<div style="font-size:12px;color:#8B98A8;margin-top:6px">Common words: ${t.concerns.join(", ")}</div>` : ""}
@@ -1106,8 +1117,8 @@ function renderExplore() {
     let html = `<button id="explore-back" style="background:none;border:none;color:#3FBFA8;font-family:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:14px">&larr; All themes</button>`;
     html += `<p style="font-family:Marcellus,serif;font-size:22px;color:#E8EDF2">${t.label}</p>`;
     html += `<div style="display:flex;gap:18px;margin:12px 0 18px;font-size:12.5px;color:#8B98A8">
-      <span><span style="color:#D9A441">${sum.worse}</span> worse</span>
-      <span><span style="color:#3FBFA8">${sum.better}</span> better</span>
+      <span><span style="color:${C_WORSE}">${sum.worse}</span> worse</span>
+      <span><span style="color:${C_BETTER}">${sum.better}</span> better</span>
       <span><span style="color:#C9B8F0">${sum.resonance}</span> resonate</span>
     </div>`;
 
@@ -1123,7 +1134,7 @@ function renderExplore() {
       html += places.map(p => `
         <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
           <span style="font-size:14px;color:#E8EDF2">${p.place}</span>
-          <span style="font-size:11.5px;color:#56616F">${p.voices} voice${p.voices === 1 ? "" : "s"} · <span style="color:#D9A441">${p.worse}↓</span> <span style="color:#3FBFA8">${p.better}↑</span></span>
+          <span style="font-size:11.5px;color:#56616F">${p.voices} voice${p.voices === 1 ? "" : "s"} · <span style="color:${C_WORSE}">${p.worse}↓</span> <span style="color:${C_BETTER}">${p.better}↑</span></span>
         </div>`).join("");
     } else {
       html += `<p style="font-size:13px;color:#8B98A8">No located voices in this theme yet. When people share what they're experiencing here, places will appear.</p>`;
@@ -1205,7 +1216,7 @@ function renderContributions() {
     return;
   }
   body.innerHTML = list.map(c => {
-    const col = c.direction === "better" ? "#3FBFA8" : "#D9A441";
+    const col = c.direction === "better" ? C_BETTER : C_WORSE;
     const d = new Date(c.date);
     const when = d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
     return `<div style="padding:12px 0;border-bottom:1px solid rgba(120,160,170,0.1)">
