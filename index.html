@@ -249,10 +249,12 @@
 <!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.2/dist/globe.gl.min.js"></script>
 
-<!-- Gaia layers: data first, then logic -->
-<script src="js/data.js"></script>
-<script src="js/mind.js"></script>
-<script src="js/app.js"></script>
+<!-- Gaia layers: data first, then logic
+     Version tag forces browsers/CDN to fetch the latest file on every
+     deploy instead of serving a stale cached copy. Bump it each round. -->
+<script src="js/data.js?v=20260623"></script>
+<script src="js/mind.js?v=20260623"></script>
+<script src="js/app.js?v=20260623"></script>
 
 </body>
 </html>
