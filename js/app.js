@@ -40,15 +40,13 @@ const THEME_LABELS = {
 
 function refreshPoints() {
   /* Voices ARE the planet's pulse — each a ripple of human experience.
-     A central dot marks the place; rings pulse outward from it. */
-  if (showVoices) {
-    globe.pointsData(voicePts.slice());
-    globe.ringsData(voicePts.slice());
-  } else {
-    /* Hard clear both layers (Globe.gl can keep animating rings otherwise) */
-    globe.pointsData([]);
-    globe.ringsData([]);
-  }
+     A central dot marks the place; rings pulse outward from it.
+     Visibility is driven by pointRadius/ringMaxRadius collapsing to 0
+     when showVoices is off, rather than emptying the data array —
+     some Globe.gl versions keep animating already-spawned ring
+     objects even after ringsData([]) is set. */
+  globe.pointsData(voicePts.slice());
+  globe.ringsData(showVoices ? voicePts.slice() : []);
 }
 
 /* Color ramp for shared wellbeing: cold deep blue (low)
@@ -256,7 +254,7 @@ async function init() {
       ? `rgba(${C_BETTER_RGBA}, 0.95)`
       : `rgba(${C_WORSE_RGBA}, 0.95)`)
     .pointAltitude(0.012)
-    .pointRadius(d => Math.min(1.1, 0.22 + 0.12 * Math.sqrt(d.count || 1)))
+    .pointRadius(d => showVoices ? Math.min(1.1, 0.22 + 0.12 * Math.sqrt(d.count || 1)) : 0)
     .pointLabel(d => `
       <div style="
         font-family: Inter, sans-serif;
@@ -280,7 +278,7 @@ async function init() {
         ? `rgba(${C_BETTER_RGBA}, ${Math.max(0, 0.7 - t)})`
         : `rgba(${C_WORSE_RGBA}, ${Math.max(0, 0.7 - t)})`;
     })
-    .ringMaxRadius(d => Math.max(1.4, Math.min(5, 1.2 + (d.count || 1) * 0.5)))
+    .ringMaxRadius(d => showVoices ? Math.max(1.4, Math.min(5, 1.2 + (d.count || 1) * 0.5)) : 0)
     .ringPropagationSpeed(1.3)
     .ringRepeatPeriod(2400);
 
