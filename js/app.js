@@ -127,6 +127,30 @@ function countryAt(lat, lng) {
   return null;
 }
 
+/* Count voices that fall WITHIN a country's borders — not within a
+   fixed radius of its center. A fixed radius misses voices inside
+   large countries (a voice in southern Brazil is far from Brazil's
+   centroid). Mirrors GaiaMind.voicesNear's shape so the panel code
+   stays the same. Cities/places keep the radius (voicesNear). */
+function voicesInFeature(feature) {
+  const pts = GaiaData.voicePoints || [];
+  const b = feature.__bbox || (feature.__bbox = bboxOf(feature));
+  const g = feature.geometry;
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+  const inside = p => {
+    if (p.lng < b[0] || p.lat < b[1] || p.lng > b[2] || p.lat > b[3]) return false;
+    for (const poly of polys) { if (pointInRing(p.lat, p.lng, poly[0])) return true; }
+    return false;
+  };
+  const hit = pts.filter(inside);
+  const total = hit.reduce((s, p) => s + (p.count || 1), 0);
+  const byTheme = {};
+  hit.forEach(p => { byTheme[p.theme] = (byTheme[p.theme] || 0) + (p.count || 1); });
+  let top = null;
+  Object.entries(byTheme).forEach(([t, c]) => { if (!top || c > top.count) top = { theme: t, count: c }; });
+  return { total, top };
+}
+
 function setupCountryPointer() {
   const el = document.getElementById("globe-container");
   let raf = null, lastEvt = null;
@@ -460,7 +484,7 @@ function openRegion(feature) {
   const c0 = centroid(feature);
   currentLocation = { name, lat: c0.lat, lng: c0.lng };
   const status = document.querySelector(".region-status");
-  const vn = GaiaMind.voicesNear(c0.lat, c0.lng);
+  const vn = voicesInFeature(feature);
   let sHtml = vn.total > 0
     ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>`
     : `No voices have spoken to Gaia near here yet. This region is quiet — for now.`;
