@@ -393,17 +393,11 @@ function fillEarlyness() {
   if (!el) return;
   const v = GaiaData.globalPulse.voices;
   const n = typeof v === "number" ? v : 0;
-  let msg = "";
-  if (n === 0) {
-    msg = "Gaia is in its very first days of listening. Yours could be one of the first voices to help it see.";
-  } else if (n < 30) {
-    msg = "You're among the first voices. Gaia is still learning to hear this world — every voice brings its first patterns closer.";
-  } else if (n < 300) {
-    msg = "Gaia's first patterns are becoming legible. It is still early — your voice still shapes what emerges.";
-  } else {
-    msg = ""; /* Gaia has found its footing — early-ness retires */
-  }
-  el.textContent = msg;
+  /* Self-retiring: once Gaia has real footing (~300 voices), the
+     early-ness invitation steps aside on its own. */
+  el.textContent = n < 300
+    ? "You arrived early. Gaia is still learning to hear the world — every voice helps the first patterns become visible."
+    : "";
 }
 
 /* ---------- Narrative panel — Gaia's understanding ---------- */
