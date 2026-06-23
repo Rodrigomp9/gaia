@@ -303,17 +303,39 @@ async function init() {
       countries.forEach(c => { delete c.__gaiaEntry; });
       globe.hexPolygonColor(hexColor);
       startSynthesis(GaiaMind.synthesize());
-      const di = GaiaMind.dailyInsight();
-      if (di) {
-        document.getElementById("daily-text").textContent = di;
-        document.getElementById("daily").classList.add("alive");
-      }
+      startDailyInsights();
     }
     fillPulse();
   });
 
   sizeGlobe();
   window.addEventListener("resize", sizeGlobe);
+}
+
+/* ---------- Today on Earth — rotating discoveries from real data ----------
+   The front-door reason to look, even with few voices: the pool is
+   built entirely from open data, so it's real at any scale. Starts
+   on today's deterministic insight, then drifts through the rest. */
+function startDailyInsights() {
+  const box = document.getElementById("daily");
+  const text = document.getElementById("daily-text");
+  if (!box || !text) return;
+  const pool = GaiaMind.insightPool();
+  if (!pool.length) return;
+
+  let i = Math.floor(Date.now() / 86400000) % pool.length;
+  const show = () => {
+    text.style.opacity = "0";
+    setTimeout(() => {
+      text.textContent = pool[i % pool.length];
+      text.style.opacity = "1";
+      i++;
+    }, 700);
+  };
+
+  box.classList.add("alive");
+  show();
+  if (pool.length > 1) setInterval(show, 11000);
 }
 
 /* ---------- Synthesis — Gaia speaks ---------- */
@@ -359,6 +381,29 @@ function fillPulse() {
     (GaiaData.voicePoints || []).map(p => Math.round(p.lat / 8) + "," + Math.round(p.lng / 8))
   ).size;
   document.getElementById("pulse-human").textContent = regions;
+
+  fillEarlyness();
+}
+
+/* Early-ness — tells the truth about Gaia's age, turning the empty
+   state into an invitation. Tied to real volume, so it retires
+   itself as Gaia grows. Never leans on raw small counts. */
+function fillEarlyness() {
+  const el = document.getElementById("earlyness");
+  if (!el) return;
+  const v = GaiaData.globalPulse.voices;
+  const n = typeof v === "number" ? v : 0;
+  let msg = "";
+  if (n === 0) {
+    msg = "Gaia is in its very first days of listening. Yours could be one of the first voices to help it see.";
+  } else if (n < 30) {
+    msg = "You're among the first voices. Gaia is still learning to hear this world — every voice brings its first patterns closer.";
+  } else if (n < 300) {
+    msg = "Gaia's first patterns are becoming legible. It is still early — your voice still shapes what emerges.";
+  } else {
+    msg = ""; /* Gaia has found its footing — early-ness retires */
+  }
+  el.textContent = msg;
 }
 
 /* ---------- Narrative panel — Gaia's understanding ---------- */
@@ -382,6 +427,18 @@ function narrativeHtml(entry) {
   }
   html += `<p style="font-size:11px;color:#56616F;margin-top:14px">Computed from open World Bank data. Nothing invented.</p>`;
   return html;
+}
+
+/* The visible pointer — honest distance to the first legible pattern.
+   Uses the real Low-confidence threshold (30 voices). Turns the
+   empty state into a target the person can actually move. */
+function thresholdPointer(total) {
+  const LOW = 30;
+  if (total >= LOW) return ` A pattern here is becoming legible.`;
+  if (total === 0)
+    return ` A pattern here becomes legible as around ${LOW} voices gather — yours could be the first.`;
+  const remaining = LOW - total;
+  return ` This place is about ${remaining} voice${remaining === 1 ? "" : "s"} from its first legible pattern.`;
 }
 
 /* ---------- Region panel ---------- */
@@ -417,6 +474,7 @@ function openRegion(feature) {
     sHtml += ``  +
       (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".");
   }
+  sHtml += `<span style="color:#8B98A8">${thresholdPointer(vn.total)}</span>`;
   status.innerHTML = sHtml;
 
   document.getElementById("region-panel").classList.add("open");
@@ -620,6 +678,7 @@ function openPlace(p) {
     ? `<span style="color:#C9B8F0">${vn.total} voice${vn.total > 1 ? "s have" : " has"} spoken to Gaia near here</span>` +
       (vn.top ? ` — most about <em>${THEME_LABELS[vn.top.theme] || vn.top.theme}</em>.` : ".")
     : `No voices have spoken to Gaia near here yet. Be the first to share what you're experiencing.`;
+  sHtml += `<span style="color:#8B98A8">${thresholdPointer(vn.total)}</span>`;
   status.innerHTML = sHtml;
 
   document.getElementById("region-panel").classList.add("open");
@@ -1210,6 +1269,34 @@ function refreshContributionsBadge() {
   btn.style.display = n ? "block" : "none";
   btn.textContent = n === 1 ? "Your voice" : `Your voices (${n})`;
 }
+/* Your perspective — an honest, private reflection drawn only from
+   the voices on this device. Descriptive, never achievement-based:
+   no "you revealed a signal" (that needs a real collective). True
+   with one voice or fifty. */
+function yourPerspectiveHtml(list) {
+  if (!list.length) return "";
+  const tally = {};
+  let better = 0, worse = 0;
+  const places = new Set(), signals = new Set();
+  list.forEach(c => {
+    if (c.theme) tally[c.theme] = (tally[c.theme] || 0) + 1;
+    if (c.direction === "better") better++; else worse++;
+    if (c.place) places.add(c.place);
+    if (c.layer2) signals.add(c.layer2);
+  });
+  const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  const lines = [];
+  if (top) lines.push(`Most of your voices are about <span style="color:#E8EDF2">${top[0]}</span>.`);
+  if (better > worse) lines.push(`You more often notice what's <span style="color:${C_BETTER}">improving</span> than what's worsening.`);
+  else if (worse > better) lines.push(`You more often notice what's <span style="color:${C_WORSE}">getting harder</span> than what's improving.`);
+  else lines.push(`You notice improvement and concern in equal measure.`);
+  if (places.size) lines.push(`You've spoken from <span style="color:#E8EDF2">${places.size}</span> place${places.size === 1 ? "" : "s"}, across <span style="color:#E8EDF2">${signals.size}</span> of Gaia's deeper signal${signals.size === 1 ? "" : "s"}.`);
+  return `<div style="border:1px solid rgba(120,160,170,0.14);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <p style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#56616F;margin-bottom:10px">Your perspective</p>
+    ${lines.map(l => `<p style="font-size:13px;color:#8B98A8;line-height:1.7;margin:0 0 6px">${l}</p>`).join("")}
+  </div>`;
+}
+
 function renderContributions() {
   const body = document.getElementById("contrib-body");
   const list = loadContributions();
@@ -1217,7 +1304,7 @@ function renderContributions() {
     body.innerHTML = `<p style="font-size:13px;color:#8B98A8">You haven't spoken to Gaia yet. When you do, your voices will be remembered here — on this device only, never tied to your name.</p>`;
     return;
   }
-  body.innerHTML = list.map(c => {
+  body.innerHTML = yourPerspectiveHtml(list) + list.map(c => {
     const col = c.direction === "better" ? C_BETTER : C_WORSE;
     const d = new Date(c.date);
     const when = d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });

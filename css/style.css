@@ -426,6 +426,17 @@ html, body {
   .daily { top: 92px; }
 }
 
+/* ---------- Early-ness note (self-retiring as Gaia grows) ---------- */
+
+.earlyness {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--aqua);
+  opacity: 0.85;
+}
+.earlyness:empty { display: none; }
+
 /* ---------- Legend ---------- */
 
 .legend {
@@ -800,6 +811,8 @@ html, body {
   line-height: 1.6;
   color: var(--text);
   text-shadow: 0 2px 18px rgba(7,11,18,0.9);
+  opacity: 1;
+  transition: opacity 0.7s ease;
 }
 
 @media (max-width: 720px) {

@@ -441,9 +441,13 @@ const GaiaMind = {
      One discovery per day. Deterministic by date — everyone
      on Earth sees the same insight today. All computed. */
 
-  dailyInsight() {
+  /* The full set of real, computed discoveries — the pool the
+     "Today on Earth" feed rotates through. All from open data,
+     nothing invented. Works the same with 4 voices or 4 million,
+     because it never depends on the voices at all. */
+  insightPool() {
     const idx = GaiaData.humanIndex;
-    if (!idx) return null;
+    if (!idx) return [];
     const entries = Object.entries(idx)
       .map(([iso, e]) => ({ iso, ...e }))
       .filter(e => e.name);
@@ -481,9 +485,30 @@ const GaiaMind = {
         `${calm}% of nations live with low violence. Peace is the quiet majority of the Earth.`);
     }
 
-    if (!candidates.length) return null;
+    const enroll = entries.map(e => e.children).filter(v => v != null);
+    if (enroll.length) {
+      const near = Math.round(100 * enroll.filter(v => v >= 90).length / enroll.length);
+      candidates.push(
+        `In ${near}% of countries, nearly every child now begins school. The future is being taught, almost everywhere.`);
+    }
+
+    const forests = entries.map(e => e.environment).filter(v => v != null);
+    if (forests.length) {
+      const avg = Math.round(forests.reduce((a, b) => a + b, 0) / forests.length);
+      candidates.push(
+        `Forests still cover about ${avg}% of the average nation. The planet we share is still holding on.`);
+    }
+
+    return candidates;
+  },
+
+  /* One discovery for today — deterministic by date, so everyone
+     on Earth sees the same one as the day's opening. */
+  dailyInsight() {
+    const pool = this.insightPool();
+    if (!pool.length) return null;
     const day = Math.floor(Date.now() / 86400000);
-    return candidates[day % candidates.length];
+    return pool[day % pool.length];
   },
 
   /* ---------- Narrative — Gaia speaks about a place ----------

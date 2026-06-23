@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>GAIA — A digital collective consciousness</title>
-<meta name="description" content="Reveal what unites us, invisible beneath the noise of the world.">
+<meta name="description" content="A living picture of how the world is doing — and how it feels to live in it. Anonymous human voices and open data reveal the patterns that emerge when many people speak.">
 <meta name="theme-color" content="#070B12">
-<meta property="og:title" content="GAIA — A digital collective consciousness">
-<meta property="og:description" content="Reveal what unites us, invisible beneath the noise of the world.">
+<meta property="og:title" content="GAIA — A living picture of how the world is doing">
+<meta property="og:description" content="How the world is doing, and how it feels to live in it. Anonymous human voices and open data reveal the patterns that emerge when many people speak together.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23070B12'/%3E%3Cg fill='none' stroke='%233FBFA8' stroke-width='5'%3E%3Ccircle cx='60' cy='60' r='42' opacity='0.4'/%3E%3Cellipse cx='60' cy='60' rx='42' ry='16' opacity='0.7'/%3E%3Cellipse cx='60' cy='60' rx='16' ry='42' opacity='0.7'/%3E%3C/g%3E%3Ccircle cx='60' cy='18' r='8' fill='%23D9A441'/%3E%3C/svg%3E">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,11 +60,11 @@
     </svg>
     <div class="wordmark">GA<span>I</span>A</div>
   </div>
-  <p class="mission">What are you noticing?</p>
-  <p class="cando">Most observations disappear into the noise.<br>Here, yours becomes part of something larger.</p>
+  <p class="mission">A living picture of how the world is doing — and how it feels to live in it.</p>
+  <p class="cando">Open data shows how nations are doing. Anonymous human voices show how it feels to live there. Gaia reveals the patterns that emerge when many people speak.</p>
 
   <button id="speak-open" class="speak-btn">🜨 Speak to Gaia</button>
-  <p class="speak-subnote">Tell her what's getting better or worse where you live.</p>
+  <p class="speak-subnote">What are you noticing where you live — getting better or worse?</p>
 
   <div class="search-wrap">
     <span class="icon">⌕</span>
@@ -88,6 +88,7 @@
         <div class="cap">Regions represented</div>
       </div>
     </div>
+    <p class="earlyness" id="earlyness"></p>
     <div class="legend">
       <span id="leg-planet" title="Click to show/hide"><i style="background:linear-gradient(90deg,#FF6B6B,#A3E635);border-radius:3px;width:26px"></i> Voices — concern &amp; hope</span>
       <span id="leg-well" title="Click to show/hide"><i style="background:linear-gradient(90deg,#29586E,#3FBFA8,#8FF0CF);border-radius:3px;width:26px"></i> Humanity&#39;s wellbeing — cold to luminous</span>
@@ -145,7 +146,7 @@
 
 <!-- Today's Insight -->
 <div id="daily" class="daily">
-  <div class="daily-label"><span class="syn-dot"></span> What people are noticing</div>
+  <div class="daily-label"><span class="syn-dot"></span> Today on Earth</div>
   <p id="daily-text"></p>
   <button id="daily-share" class="share-btn">Share this insight</button>
 </div>
@@ -252,9 +253,9 @@
 <!-- Gaia layers: data first, then logic
      Version tag forces browsers/CDN to fetch the latest file on every
      deploy instead of serving a stale cached copy. Bump it each round. -->
-<script src="js/data.js?v=20260623b"></script>
-<script src="js/mind.js?v=20260623b"></script>
-<script src="js/app.js?v=20260623b"></script>
+<script src="js/data.js?v=20260623c"></script>
+<script src="js/mind.js?v=20260623c"></script>
+<script src="js/app.js?v=20260623c"></script>
 
 </body>
 </html>
