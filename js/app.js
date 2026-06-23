@@ -41,12 +41,16 @@ const THEME_LABELS = {
 function refreshPoints() {
   /* Voices ARE the planet's pulse — each a ripple of human experience.
      A central dot marks the place; rings pulse outward from it.
-     Visibility is driven by pointRadius/ringMaxRadius collapsing to 0
-     when showVoices is off, rather than emptying the data array —
-     some Globe.gl versions keep animating already-spawned ring
-     objects even after ringsData([]) is set. */
-  globe.pointsData(voicePts.slice());
-  globe.ringsData(showVoices ? voicePts.slice() : []);
+     pointsData and ringsData each need their OWN object instances —
+     Globe.gl stamps a tracking property onto every datum to remember
+     its 3D mesh, so feeding both layers the same objects (e.g. via
+     .slice(), which copies the array but not its items) makes the
+     rings layer silently steal the points layer's tracking and vice
+     versa, orphaning the mesh forever (it never disappears again,
+     no matter what's passed in afterwards). Visibility is driven by
+     pointRadius/ringMaxRadius collapsing to 0 when showVoices is off. */
+  globe.pointsData(voicePts.map(d => Object.assign({}, d)));
+  globe.ringsData(voicePts.map(d => Object.assign({}, d)));
 }
 
 /* Color ramp for shared wellbeing: cold deep blue (low)
